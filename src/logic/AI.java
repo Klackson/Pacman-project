@@ -108,24 +108,28 @@ public class AI{
 	public static int maxdepth = 5;
 	public static String aggregate_method = "mean";
 	public static int value_per_life = 15;
+	public static int death_penatly = 1000;
 	
-	public int heuristic (BeliefState beliefstate) {
+	public int heuristic (Result result) {
 		
 		// Very  primitive heuristic, we only consider current score
 		int hscore = 0;
-		hscore+= beliefstate.getScore();
-		hscore+= beliefstate.getLife() * value_per_life;
-		if (beliefstate.getLife()==0) hscore-=1000;
+		for(BeliefState bstate : result.getBeliefStates()) {
+			hscore+= bstate.getScore();
+			hscore+= bstate.getLife() * value_per_life;
+			if (bstate.getLife()==0) hscore -= death_penatly;
+		}
+		
 		
 		return hscore;
 	}
 	
-	public float aggregateNodes(ArrayList<Integer> values) {
+	public float aggregateNodes(ArrayList<Float> values) {
 		
 		// Mean version
 		if (aggregate_method=="mean") {
 			float sum=0;
-			for(int value : values) {
+			for(float value : values) {
 				sum+=value;
 			}
 			return sum/values.size();
@@ -133,8 +137,20 @@ public class AI{
 		return 0;
 	}
 	
-	public float treesearch(BeliefState beliefstate, int currentdepth) {
-		if(currentdepth == maxdepth) return heuristic(beliefstate);
+	public float treesearch(Result result, int currentdepth) {
+		//should this work with results or belief states ?
+		
+		if(currentdepth == maxdepth) return heuristic(result);
+		
+		int childvalue; 
+		
+		for(BeliefState bstate : result.getBeliefStates()) {
+			ArrayList<Result> child = bstate.extendsBeliefState().results;
+			// should we recursively throw the function on every result of every beliefstate ??
+			// Look for a way of aggregating all this
+			childvalue = treesearch(child, currentdepth+1);
+		}
+		
 	}
 	
 	/**
