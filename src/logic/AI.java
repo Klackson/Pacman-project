@@ -135,6 +135,8 @@ public class AI{
 	
 	public float treesearch(BeliefState beliefstate, int currentdepth) {
 		if(currentdepth == maxdepth) return heuristic(beliefstate);
+
+		if(currentdepth == 9) System.out.println("hun");
 	}
 	
 	/**
