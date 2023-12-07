@@ -1,6 +1,7 @@
 package logic;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.TreeSet;
 
 import view.Gomme;
@@ -104,27 +105,28 @@ class Result{
  */
 public class AI{
 	
+	public HashMap<Result,Float> memory; 
+	
 	// Parameters to fiddle with
 	public static int maxdepth = 5;
 	public static String aggregate_method = "mean";
 	public static int value_per_life = 15;
-	public static int death_penatly = 1000;
+	public static int death_penatly = 10;
 	
-	public int heuristic (Result result) {
+	public static int heuristic (Result result) {
 		
 		// Very  primitive heuristic, we only consider current score
 		int hscore = 0;
 		for(BeliefState bstate : result.getBeliefStates()) {
 			hscore+= bstate.getScore();
-			hscore+= bstate.getLife() * value_per_life;
+			//hscore+= bstate.getLife() * value_per_life; No point in that as long as we only have a single life
 			if (bstate.getLife()==0) hscore -= death_penatly;
 		}
-		
-		
+
 		return hscore;
 	}
 	
-	public float aggregateNodes(ArrayList<Float> values) {
+	public static float aggregateValues(ArrayList<Float> values) {
 		
 		// Mean version
 		if (aggregate_method=="mean") {
@@ -134,23 +136,33 @@ public class AI{
 			}
 			return sum/values.size();
 		}
+		else if (aggregate_method=="min"){
+			float min = Integer.MAX_VALUE;
+			for (float value : values){
+				if(value < min) min = value;
+			}
+			return min;
+		}
 		return 0;
 	}
 	
-	public float treesearch(Result result, int currentdepth) {
+	public static float treesearch(Result result, int currentdepth) {
 		//should this work with results or belief states ?
 		
 		if(currentdepth == maxdepth) return heuristic(result);
 		
-		int childvalue; 
+		ArrayList<Float> children_values = new ArrayList<Float>();
 		
 		for(BeliefState bstate : result.getBeliefStates()) {
-			ArrayList<Result> child = bstate.extendsBeliefState().results;
-			// should we recursively throw the function on every result of every beliefstate ??
-			// Look for a way of aggregating all this
-			childvalue = treesearch(child, currentdepth+1);
+			
+			ArrayList<Result> results = bstate.extendsBeliefState().results;
+			for(Result child : results){
+				children_values.add( treesearch(child, currentdepth+1) );
+			}
+			
 		}
-		
+
+		return aggregateValues(children_values);
 	}
 	
 	/**
@@ -160,6 +172,21 @@ public class AI{
 	 * @return a string describing the next action (among PacManLauncher.UP/DOWN/LEFT/RIGHT)
 	 */
 	public static String findNextMove(BeliefState beliefState) {
-		return PacManLauncher.LEFT;
+
+		Plans plans = beliefState.extendsBeliefState();
+
+		float max_utility = Integer.MIN_VALUE;
+		float plan_utility;
+		String chosen_action = PacManLauncher.LEFT;
+
+		for(int i=0; i<plans.size(); i++){
+			plan_utility = treesearch(plans.getResult(i), 0);
+			if(plan_utility > max_utility){
+				max_utility = plan_utility;
+				chosen_action = plans.getAction(i).get(0);
+			}
+		}
+
+		return chosen_action;
 	}
 }
