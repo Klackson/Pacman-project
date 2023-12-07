@@ -103,10 +103,44 @@ class Result{
  * class implement the AI to choose the next move of the Pacman
  */
 public class AI{
+	
+	// Parameters to fiddle with
+	public static int maxdepth = 5;
+	public static String aggregate_method = "mean";
+	public static int value_per_life = 15;
+	
+	public int heuristic (BeliefState beliefstate) {
+		
+		// Very  primitive heuristic, we only consider current score
+		int hscore = 0;
+		hscore+= beliefstate.getScore();
+		hscore+= beliefstate.getLife() * value_per_life;
+		if (beliefstate.getLife()==0) hscore-=1000;
+		
+		return hscore;
+	}
+	
+	public float aggregateNodes(ArrayList<Integer> values) {
+		
+		// Mean version
+		if (aggregate_method=="mean") {
+			float sum=0;
+			for(int value : values) {
+				sum+=value;
+			}
+			return sum/values.size();
+		}
+		return 0;
+	}
+	
+	public float treesearch(BeliefState beliefstate, int currentdepth) {
+		if(currentdepth == maxdepth) return heuristic(beliefstate);
+	}
+	
 	/**
 	 * function that compute the next action to do (among UP, DOWN, LEFT, RIGHT)
 	 * @param beliefState the current belief-state of the agent
-	 * @param deepth the deepth of the search (size of the largest sequence of action checked)
+	 * @param depth the depth of the search (size of the largest sequence of action checked)
 	 * @return a string describing the next action (among PacManLauncher.UP/DOWN/LEFT/RIGHT)
 	 */
 	public static String findNextMove(BeliefState beliefState) {
