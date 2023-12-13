@@ -219,6 +219,12 @@ public class Ghost extends Entite {
 									reInit = reInit || this.map.getBeliefState().moveGhost(-1, 0, this.id, this.previousMove.charAt(0));
 							}
 							else {
+								switch(this.map.getBeliefState().getPacmanPos().dir) {
+								case 'U': this.move(PacManLauncher.DOWN); break;
+								case 'D': this.move(PacManLauncher.UP); break;
+								case 'L': this.move(PacManLauncher.RIGHT); break;
+								case 'R': this.move(PacManLauncher.LEFT); break;
+								}
 								if(moveBeliefState)
 									reInit = reInit || this.map.getBeliefState().moveGhost(0, 0, this.id, this.previousMove.charAt(0));
 							}
@@ -294,9 +300,9 @@ public class Ghost extends Entite {
 				case PacManLauncher.RIGHT: this.map.getBeliefState().moveGhost(0, 1, this.id, this.previousMove.charAt(0)); /*System.out.println("moveGhost(0, 1, " + this.id + ", " + this.previousMove.charAt(0) + ")");*/ break;
 				}
 			}
-			if(moveBeliefState && this.id == (this.map.getPGhost().size() - 1)) {
+			/*if(moveBeliefState && this.id == (this.map.getPGhost().size() - 1)) {
 				this.visibleBeliefStateCopy = (ArrayList<BeliefState>)this.map.getVisibleBeliefState().clone();
-			}
+			}*/
 		}
 
 		if (!haveMoved) {

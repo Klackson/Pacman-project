@@ -39,7 +39,7 @@ public class Map {
 	/** Le nombre de gomme présent sur la map */
 	private int nbrGomme;
 	/** La position sur la map de chaque fantôme en début de niveau : Un liste de couple (x,y) */
-	private ArrayList<Integer[]> ghosts;
+	private ArrayList<int[]> ghosts;
 	/** Paires cases visibles */
 	private HashSet<String> visible;
 	private PacManLauncher pml;
@@ -58,7 +58,7 @@ public class Map {
 		assert mapNumber > 0 : "Precondition non respectée : numéro de la map négatif";
 		this.mapFile = "./doc/map"+ mapNumber +".map";
 		this.nbrGomme = 0;
-		this.ghosts = new ArrayList<Integer[]>();
+		this.ghosts = new ArrayList<int[]>();
 		this.visibleBeliefState = new ArrayList<BeliefState>();
 		this.gamePositions = new ArrayList<int[]>();
 		this.createMap();
@@ -107,13 +107,13 @@ public class Map {
 					this.couleurMur = param[1];
 					this.theMap = new MapGenerate(this.nbCases);
 					this.visible = new HashSet<String>();
-					this.state = new BeliefState(this, this.pml.getPacman() != null? this.pml.getPacman().getScore(): 0, this.pml.getPacman() != null? this.pml.getPacman().getLife(): Pacman.LIFE_START);
+					this.state = new BeliefState(this.nbCases, this.pml.getPacman() != null? this.pml.getPacman().getScore(): 0, this.pml.getPacman() != null? this.pml.getPacman().getLife(): Pacman.LIFE_START);
 				}
 				else {
 					int j = 0;                   // La colonne de la map
 					int tmpx = 0;                // Variable utilisée pour stocké la position en x d'une figure
 					int tmpy = 0;                // Variable utilisée pour stocké la position en y d'une figure
-					Integer[] posGhost = null;
+					int[] posGhost = null;
 
 					String[] param = ligne.split("");
 					for (String str : param) {
@@ -178,7 +178,7 @@ public class Map {
 							break;
 						case "F" :
 							this.theMap.setFigure(i,j,new Gomme(this.tailleCase, tmpx, tmpy));
-							posGhost = new Integer[2];
+							posGhost = new int[2];
 							posGhost[0] = tmpx;
 							posGhost[1] = tmpy;
 							this.ghosts.add(posGhost);
@@ -210,6 +210,7 @@ public class Map {
 		assert couleurMur == "blue" || couleurMur == "green" || couleurMur == "pink" : "Post condition non respectée : Mauvaise couleur de mur";
 
 		this.invariant();
+		BeliefState.setStaticVariables(this.gamePositions, this.visible, this.pacmanX, this.pacmanY, this.ghosts, this.tailleCase, this.nbCases);
 		this.visibleBeliefState.add(new BeliefState(this.state, false));
 	}
 	
@@ -288,7 +289,7 @@ public class Map {
 	 *
 	 * @return La liste des postion des fantomes
 	 */
-	public ArrayList<Integer[]> getPGhost() {
+	public ArrayList<int[]> getPGhost() {
 		return this.ghosts;
 	}
 
@@ -327,6 +328,14 @@ public class Map {
 	
 	public void setVisibleBeliefState(ArrayList<BeliefState> visibleBeliefState) {
 		this.visibleBeliefState = visibleBeliefState;
+	}
+	
+	public BeliefState getState() {
+		return this.state;
+	}
+	
+	public ArrayList<BeliefState> getVisibleState(){
+		return this.visibleBeliefState;
 	}
 
 }

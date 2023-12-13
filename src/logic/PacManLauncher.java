@@ -17,6 +17,7 @@ public class PacManLauncher {
 	private static final int NBR_LVL = 3; // TODO : compter le nbr de fichier .map ??
 	private double meanTimeResolution;
 	private long nbrSamples;
+	private static long nbrMaxSample = 20000;
 	
 	/**
 	 * initialize au lancement le jeu pacman
@@ -33,6 +34,9 @@ public class PacManLauncher {
 		for(int i = 0; i < this.ghost.length; i++)
 			this.pastCollisionG.add(false);
 		this.pastCollisionP = false;
+		this.meanTimeResolution = 0;
+		this.nbrSamples = 0;
+		
 	}
 
 	public static void main (String[] args) {
@@ -42,7 +46,7 @@ public class PacManLauncher {
 		pml.animate(); // Le lvl 1
 
 		int i = 2;
-		while ((pml.getPacman().getLife() > 0)) {
+		while ((pml.getPacman().getLife() > 0) && (pml.nbrSamples < PacManLauncher.nbrMaxSample)) {
 			pml.upLvl(i);
 			pml.draw();
 			pml.animate();
@@ -76,13 +80,13 @@ public class PacManLauncher {
 	 * en fonction de l'objet this.map
 	 */
 	public void fillGhost () {
-		ArrayList<Integer[]> gs = this.maps.getPGhost();//tab des positions fantome
+		ArrayList<int[]> gs = this.maps.getPGhost();//tab des positions fantome
 		this.ghost = new Ghost[gs.size()];
 
 		String[] color = {"redG", "blueG", "orangeG", "pinkG"};
 		int cpt = 0;
 		int cptGhost = 0;
-		for (Integer[] t : gs) {
+		for (int[] t : gs) {
 			this.ghost[cpt] = new Ghost(this.maps.getTailleCase(), t[0], t[1], color[cptGhost], this.maps, cpt);
 			
 			cpt++;
@@ -127,7 +131,7 @@ public class PacManLauncher {
 	public void animate () {
 		Canvas c = Canvas.getCanvas();
 		c.resetMove();
-		while ((this.maps.getNbGom() > 0) && (this.pacman.getLife() > 0)) {
+		while ((this.maps.getNbGom() > 0) && (this.pacman.getLife() > 0) && (this.nbrSamples < PacManLauncher.nbrMaxSample)) {
 			/*if(this.getPacman().getX() % this.maps.getTailleCase() == 0 && this.getPacman().getY() % this.maps.getTailleCase() == 0 && this.getPacman().getCount() % (this.maps.getTailleCase() / Pacman.SPEED_PACMAN) == 0) {
 				System.out.println(this.maps.getState().toString());
 				System.out.println("Actual position: P(" + this.pacman.getY() / this.maps.getTailleCase()  + ", " + this.getPacman().getX() / this.maps.getTailleCase() + ") " + this.getPacman().getScore());
@@ -142,9 +146,9 @@ public class PacManLauncher {
 					if(g.getY() / this.maps.getTailleCase() != posG.x || g.getX() / this.maps.getTailleCase() != posG.y)
 						System.out.println("Problem");
 				}
-				ArrayList<State> listState = this.maps.getVisibleState();
+				ArrayList<BeliefState> listState = this.maps.getVisibleState();
 				int k = 0;
-				for(State state: listState) {
+				for(BeliefState state: listState) {
 					System.out.println("State[" + k + "]\n" + state.toString());
 					k++;
 				}
@@ -174,10 +178,12 @@ public class PacManLauncher {
 			//swich the key press, move the pacman
 			if(Canvas.getCanvas().isAIdriven()) {
 				long elapsedTime = System.currentTimeMillis();
-				isInit = this.pacman.move(AI.findNextMove(this.maps.getBeliefState()));
+				if(this.maps.getVisibleBeliefState().size() != 1)
+					System.out.println("Problem");
+				isInit = this.pacman.move(AI.findNextMove(this.maps.getVisibleBeliefState().get(0)));
 				elapsedTime = System.currentTimeMillis() - elapsedTime;
 				this.nbrSamples++;
-				this.meanTimeResolution = ((double)elapsedTime) / this.nbrSamples + (((double)(this.nbrSamples - 1)) / this.nbrSamples) * this.meanTimeResolution;
+				this.meanTimeResolution = ((double)elapsedTime) / this.nbrSamples + (((double)(this.nbrSamples - 1)) / this.nbrSamples) * this.meanTimeResolution; 
 			}
 			else {
 				if (c.isUpPressed()) {
@@ -266,7 +272,7 @@ public class PacManLauncher {
 			}
 			else if(this.pastCollisionG.get(i) || this.pacman.colisionGhost(this.ghost[i]) && this.ghost[i].getPeur() > 0) {
 
-				ArrayList<Integer[]> gs = this.maps.getPGhost();
+				ArrayList<int[]> gs = this.maps.getPGhost();
 				this.ghost[i].setLocation(gs.get(i)[0], gs.get(i)[1]);
 				this.ghost[i].setPreviousMove(PacManLauncher.UP);
 				this.ghost[i].setEtatNormal();
@@ -278,10 +284,10 @@ public class PacManLauncher {
 		}
 
 		if (ret) {//si une colision
-			ArrayList<Integer[]> gs = this.maps.getPGhost();//tab des positions fantome
+			ArrayList<int[]> gs = this.maps.getPGhost();//tab des positions fantome
 
 			int cpt = 0;
-			for (Integer[] t : gs) {
+			for (int[] t : gs) {
 				this.ghost[cpt].setLocation(t[0], t[1]);
 				this.ghost[cpt].setEtatNormal();
 				this.pastCollisionG.set(cpt, false);

@@ -1,9 +1,12 @@
 package logic;
 
+import java.io.InputStream;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.HashSet;
 //import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Scanner;
 import java.util.TreeSet;
 
 import data.Map;
@@ -93,24 +96,99 @@ public class BeliefState implements Comparable{
 	private Position pacmanPos;
 	private int nbrOfGommes, nbrOfSuperGommes, score, life;
 	private ArrayList<Integer> compteurPeur;
-	private Map theMap;
+	//private Map theMap;
+	private static ArrayList<int[]> gamePositions;
+	private static HashSet<String> visible;
+	private static int pacmanXInit, pacmanYInit;
+	private static ArrayList<int[]> listPGhostInit;
+	private static int tailleCase;
+	private static int taille;
 	
+	
+	public static void setStaticVariables(ArrayList<int[]> gamePositions, HashSet<String> visible, int pacmanXInit, int pacmanYInit, ArrayList<int[]> listPGhostInit, int tailleCase, int taille) {
+		BeliefState.gamePositions = gamePositions;
+		BeliefState.visible = visible;
+		BeliefState.pacmanXInit = pacmanXInit;
+		BeliefState.pacmanYInit = pacmanYInit;
+		BeliefState.listPGhostInit = listPGhostInit;
+		BeliefState.tailleCase = tailleCase;
+		BeliefState.taille = taille;
+	}
 	/**
 	 * create a new BeliefState object
-	 * @param theMap the current version of the Pacman man discribing the position of (super) gums
+	 * @param taille the current version of the Pacman man discribing the position of (super) gums
 	 * @param score the current score
 	 * @param life the number of remaining lifes for Pacman
 	 */
-	public BeliefState(Map theMap, int score, int life) {
-		this.map = new char[theMap.getNbCases()][theMap.getNbCases()];
+	public BeliefState(int taille, int score, int life) {
+		BeliefState.taille = taille;
+		this.map = new char[BeliefState.taille][BeliefState.taille];
 		this.pacmanPos = new Position(0,0,'U');
 		this.listPGhost = new ArrayList</*HashMap<String, Position>*/TreeSet<Position>>();
 		this.nbrOfGommes = 0;
 		this.score = score;
 		this.compteurPeur = new ArrayList<Integer>();
-		this.theMap = theMap;
+		//this.theMap = theMap;
 		this.life = life;
 	}
+	
+	/*public BeliefState(InputStream in) {
+		Scanner scan = new Scanner(in);
+		BeliefState.taille = scan.nextInt();
+		scan.nextLine();
+		this.map = new char[BeliefState.taille][BeliefState.taille];
+		for(int i = 0; i < BeliefState.taille; i++) {
+			String line = scan.nextLine();
+			for(int j = 0; j < BeliefState.taille; j++) {
+				this.map[i][j] = line.charAt(j);
+			}
+		}
+		int pacmanPosX = scan.nextInt(), pacmanPosY = scan.nextInt();
+		BeliefState.pacmanXInit = scan.nextInt();
+		BeliefState.pacmanYInit = scan.nextInt();
+		BeliefState.tailleCase = scan.nextInt();
+		scan.nextLine();
+		String line = scan.nextLine();
+		this.pacmanPos = new Position(pacmanPosX, pacmanPosY, line.charAt(0));
+		this.score = scan.nextInt();
+		this.life = scan.nextInt();
+		this.nbrOfGommes = scan.nextInt();
+		this.nbrOfSuperGommes = scan.nextInt();
+		int sizeListPGhost = scan.nextInt();
+		this.listPGhost = new ArrayList<TreeSet<Position>>();
+		this.compteurPeur = new ArrayList<Integer>();
+		BeliefState.listPGhostInit = new ArrayList<int[]>();
+		for(int i = 0; i < sizeListPGhost; i++) {
+			TreeSet<Position> posGhost = new TreeSet<Position>();
+			this.compteurPeur.add(scan.nextInt());
+			int nbrPos = scan.nextInt();
+			for(int index = 0; index < nbrPos; index++) {
+				int x = scan.nextInt();
+				int y = scan.nextInt();
+				line = scan.nextLine();
+				char dir = line.charAt(1);
+				Position posG = new Position(x, y, dir);
+				posGhost.add(posG);
+			}
+			this.listPGhost.add(posGhost);
+			int[] posG = new int[2];
+			posG[0] = scan.nextInt();
+			posG[1] = scan.nextInt();
+			BeliefState.listPGhostInit.add(posG);
+		}
+		int gamePositionSize = scan.nextInt();
+		BeliefState.gamePositions = new ArrayList<int[]>();
+		for(int index = 0; index < gamePositionSize; index++) {
+			int[] posCell = new int[2];
+			posCell[0] = scan.nextInt();
+			posCell[1] = scan.nextInt();
+			BeliefState.gamePositions.add(posCell);
+		}
+		while(scan.hasNext()) {
+			line = scan.nextLine();
+			BeliefState.visible.add(line);
+		}
+	}*/
 	
 	public int compareTo(Object o) {
 		BeliefState bs = (BeliefState) o;
@@ -129,7 +207,7 @@ public class BeliefState implements Comparable{
 		comp = this.nbrOfSuperGommes - bs.nbrOfSuperGommes;
 		if(comp != 0)
 			return comp;
-		for(int[] pos:this.theMap.getGamePosition()) {
+		for(int[] pos:BeliefState.gamePositions) {
 			comp = this.map[pos[0]][pos[1]] - bs.map[pos[0]][pos[1]];
 			if(comp != 0)
 				return comp;
@@ -161,7 +239,7 @@ public class BeliefState implements Comparable{
 	 */
 
 	public BeliefState(BeliefState toCopy, boolean isDead) {
-		this(toCopy.theMap, toCopy.score, toCopy.life);
+		this(BeliefState.taille, toCopy.score, toCopy.life);
 		this.pacmanPos.dir = toCopy.pacmanPos.dir;
 		for(int i = 0; i < this.map.length; i++) {
 			for(int j = 0; j < this.map[i].length; j++) {
@@ -184,7 +262,7 @@ public class BeliefState implements Comparable{
 		}
 		else {
 			this.life = toCopy.life - 1;
-			this.moveTo(this.theMap.getPMY() / this.theMap.getTailleCase(), this.theMap.getPMX() / this.theMap.getTailleCase(), 'U');
+			this.moveTo(/*this.theMap.getPMY() / this.theMap.getTailleCase()*/BeliefState.pacmanYInit / BeliefState.tailleCase, /*this.theMap.getPMX() / this.theMap.getTailleCase()*/BeliefState.pacmanXInit / BeliefState.tailleCase, 'U');
 		}
 	}
 
@@ -324,7 +402,7 @@ public class BeliefState implements Comparable{
 					while(itPos.hasNext()) {
 						Position posG = itPos.next();
 						boolean haveMoved = false;
-						if(state.theMap.isVisible(posG.x, posG.y, state.pacmanPos.x, state.pacmanPos.y) && compteurPeur == 0) {
+						if(BeliefState.isVisible(posG.x, posG.y, state.pacmanPos.x, state.pacmanPos.y) && compteurPeur == 0) {
 							if(posGhost.size() > 1) {
 								Position newPos = posG.clone();
 								BeliefState actualBeliefState = new BeliefState(state, false);
@@ -446,7 +524,7 @@ public class BeliefState implements Comparable{
 									for(int[] newCase: caseAround) {
 										Position newPos = new Position(newCase[0], newCase[1], moveAround.get(m++));
 										if((newPos.x == state.pacmanPos.x && newPos.y == state.pacmanPos.y) || (posG.x == state.pacmanPos.x && posG.y == state.pacmanPos.y && newPos.x == this.pacmanPos.x && newPos.y == this.pacmanPos.y)) {
-											newPos = new Position(this.theMap.getPGhost().get(k)[1] / this.theMap.getTailleCase(),this.theMap.getPGhost().get(k)[0] / this.theMap.getTailleCase(),'U');
+											newPos = new Position(/*this.theMap.getPGhost().get(k)[1] / this.theMap.getTailleCase()*/BeliefState.listPGhostInit.get(k)[1] / BeliefState.tailleCase,/*this.theMap.getPGhost().get(k)[0] / this.theMap.getTailleCase()*/ BeliefState.listPGhostInit.get(k)[0] / BeliefState.tailleCase,'U');
 											BeliefState actualBeliefState = new BeliefState(state, false);
 											actualBeliefState.listPGhost.get(k).clear();
 											actualBeliefState.compteurPeur.set(k, 0);
@@ -466,7 +544,7 @@ public class BeliefState implements Comparable{
 									for(int[] newCase: caseAround) {
 										Position newPos = new Position(newCase[0], newCase[1], moveAround.get(m++));
 										if((newPos.x == state.pacmanPos.x && newPos.y == state.pacmanPos.y) || (posG.x == state.pacmanPos.x && posG.y == state.pacmanPos.y && newPos.x == this.pacmanPos.x && newPos.y == this.pacmanPos.y)) {
-											newPos = new Position(this.theMap.getPGhost().get(k)[1] / this.theMap.getTailleCase(),this.theMap.getPGhost().get(k)[0] / this.theMap.getTailleCase(),'U');
+											newPos = new Position(/*this.theMap.getPGhost().get(k)[1] / this.theMap.getTailleCase()*/ BeliefState.listPGhostInit.get(k)[1] / BeliefState.tailleCase,/*this.theMap.getPGhost().get(k)[0] / this.theMap.getTailleCase()*/ BeliefState.listPGhostInit.get(k)[0] / BeliefState.tailleCase,'U');
 											BeliefState actualBeliefState = new BeliefState(state, false);
 											actualBeliefState.listPGhost.get(k).clear();
 											actualBeliefState.compteurPeur.set(k, 0);
@@ -493,7 +571,7 @@ public class BeliefState implements Comparable{
 									for(int[] newCase: caseAround) {
 										Position newPos = new Position(newCase[0], newCase[1], moveAround.get(m++));
 										if((newPos.x == state.pacmanPos.x && newPos.y == state.pacmanPos.y) || (posG.x == state.pacmanPos.x && posG.y == state.pacmanPos.y && newPos.x == this.pacmanPos.x && newPos.y == this.pacmanPos.y)) {
-											newPos = new Position(this.theMap.getPGhost().get(k)[1] / this.theMap.getTailleCase(),this.theMap.getPGhost().get(k)[0] / this.theMap.getTailleCase(),'U');
+											newPos = new Position(/*this.theMap.getPGhost().get(k)[1] / this.theMap.getTailleCase()*/ BeliefState.listPGhostInit.get(k)[1] / BeliefState.tailleCase,/*this.theMap.getPGhost().get(k)[0] / this.theMap.getTailleCase()*/ BeliefState.listPGhostInit.get(k)[0] / BeliefState.tailleCase,'U');
 											BeliefState actualBeliefState = new BeliefState(state, false);
 											actualBeliefState.listPGhost.get(k).clear();
 											actualBeliefState.compteurPeur.set(k, 0);
@@ -513,7 +591,7 @@ public class BeliefState implements Comparable{
 									for(int[] newCase: caseAround) {
 										Position newPos = new Position(newCase[0], newCase[1], moveAround.get(m++));
 										if((newPos.x == state.pacmanPos.x && newPos.y == state.pacmanPos.y) || (posG.x == state.pacmanPos.x && posG.y == state.pacmanPos.y && newPos.x == this.pacmanPos.x && newPos.y == this.pacmanPos.y)) {
-											newPos = new Position(this.theMap.getPGhost().get(k)[1] / this.theMap.getTailleCase(),this.theMap.getPGhost().get(k)[0] / this.theMap.getTailleCase(),'U');
+											newPos = new Position(/*this.theMap.getPGhost().get(k)[1] / this.theMap.getTailleCase()*/ BeliefState.listPGhostInit.get(k)[1] / BeliefState.tailleCase,/*this.theMap.getPGhost().get(k)[0] / this.theMap.getTailleCase()*/ BeliefState.listPGhostInit.get(k)[0] / BeliefState.tailleCase,'U');
 											BeliefState actualBeliefState = new BeliefState(state, false);
 											actualBeliefState.listPGhost.get(k).clear();
 											actualBeliefState.compteurPeur.set(k, 0);
@@ -541,7 +619,7 @@ public class BeliefState implements Comparable{
 									for(int[] newCase: caseAround) {
 										Position newPos = new Position(newCase[0], newCase[1], moveAround.get(m++));
 										if((newPos.x == state.pacmanPos.x && newPos.y == state.pacmanPos.y) || (posG.x == state.pacmanPos.x && posG.y == state.pacmanPos.y && newPos.x == this.pacmanPos.x && newPos.y == this.pacmanPos.y)) {
-											newPos = new Position(this.theMap.getPGhost().get(k)[1] / this.theMap.getTailleCase(),this.theMap.getPGhost().get(k)[0] / this.theMap.getTailleCase(),'U');
+											newPos = new Position(/*this.theMap.getPGhost().get(k)[1] / this.theMap.getTailleCase()*/BeliefState.listPGhostInit.get(k)[1] / BeliefState.tailleCase,/*this.theMap.getPGhost().get(k)[0] / this.theMap.getTailleCase()*/ BeliefState.listPGhostInit.get(k)[0] / BeliefState.tailleCase,'U');
 											BeliefState actualBeliefState = new BeliefState(state, false);
 											actualBeliefState.listPGhost.get(k).clear();
 											actualBeliefState.compteurPeur.set(k, 0);
@@ -561,7 +639,7 @@ public class BeliefState implements Comparable{
 									for(int[] newCase: caseAround) {
 										Position newPos = new Position(newCase[0], newCase[1], moveAround.get(m++));
 										if((newPos.x == state.pacmanPos.x && newPos.y == state.pacmanPos.y) || (posG.x == state.pacmanPos.x && posG.y == state.pacmanPos.y && newPos.x == this.pacmanPos.x && newPos.y == this.pacmanPos.y)) {
-											newPos = new Position(this.theMap.getPGhost().get(k)[1] / this.theMap.getTailleCase(),this.theMap.getPGhost().get(k)[0] / this.theMap.getTailleCase(),'U');
+											newPos = new Position(/*this.theMap.getPGhost().get(k)[1] / this.theMap.getTailleCase()*/BeliefState.listPGhostInit.get(k)[1] / BeliefState.tailleCase,/*this.theMap.getPGhost().get(k)[0] / this.theMap.getTailleCase()*/ BeliefState.listPGhostInit.get(k)[0] / BeliefState.tailleCase,'U');
 											BeliefState actualBeliefState = new BeliefState(state, false);
 											actualBeliefState.listPGhost.get(k).clear();
 											actualBeliefState.compteurPeur.set(k, 0);
@@ -588,7 +666,7 @@ public class BeliefState implements Comparable{
 									for(int[] newCase: caseAround) {
 										Position newPos = new Position(newCase[0], newCase[1], moveAround.get(m++));
 										if((newPos.x == state.pacmanPos.x && newPos.y == state.pacmanPos.y) || (posG.x == state.pacmanPos.x && posG.y == state.pacmanPos.y && newPos.x == this.pacmanPos.x && newPos.y == this.pacmanPos.y)) {
-											newPos = new Position(this.theMap.getPGhost().get(k)[1] / this.theMap.getTailleCase(),this.theMap.getPGhost().get(k)[0] / this.theMap.getTailleCase(),'U');
+											newPos = new Position(/*this.theMap.getPGhost().get(k)[1] / this.theMap.getTailleCase()*/ BeliefState.listPGhostInit.get(k)[1] / BeliefState.tailleCase,/*this.theMap.getPGhost().get(k)[0] / this.theMap.getTailleCase()*/BeliefState.listPGhostInit.get(k)[0] / BeliefState.tailleCase,'U');
 											BeliefState actualBeliefState = new BeliefState(state, false);
 											actualBeliefState.listPGhost.get(k).clear();
 											actualBeliefState.compteurPeur.set(k, 0);
@@ -608,7 +686,7 @@ public class BeliefState implements Comparable{
 									for(int[] newCase: caseAround) {
 										Position newPos = new Position(newCase[0], newCase[1], moveAround.get(m++));
 										if((newPos.x == state.pacmanPos.x && newPos.y == state.pacmanPos.y) || (posG.x == state.pacmanPos.x && posG.y == state.pacmanPos.y && newPos.x == this.pacmanPos.x && newPos.y == this.pacmanPos.y)) {
-											newPos = new Position(this.theMap.getPGhost().get(k)[1] / this.theMap.getTailleCase(),this.theMap.getPGhost().get(k)[0] / this.theMap.getTailleCase(),'U');
+											newPos = new Position(/*this.theMap.getPGhost().get(k)[1] / this.theMap.getTailleCase()*/BeliefState.listPGhostInit.get(k)[1] / BeliefState.tailleCase,/*this.theMap.getPGhost().get(k)[0] / this.theMap.getTailleCase()*/BeliefState.listPGhostInit.get(k)[0] / BeliefState.tailleCase,'U');
 											BeliefState actualBeliefState = new BeliefState(state, false);
 											actualBeliefState.listPGhost.get(k).clear();
 											actualBeliefState.compteurPeur.set(k, 0);
@@ -638,7 +716,7 @@ public class BeliefState implements Comparable{
 							}
 							if(compteurPeur > 0) {
 								if((newPos.x == state.pacmanPos.x && newPos.y == state.pacmanPos.y) || (posG.x == state.pacmanPos.x && posG.y == state.pacmanPos.y && newPos.x == this.pacmanPos.x && newPos.y == this.pacmanPos.y)) {
-									newPos = new Position(this.theMap.getPGhost().get(k)[1] / this.theMap.getTailleCase(),this.theMap.getPGhost().get(k)[0] / this.theMap.getTailleCase(),'U');
+									newPos = new Position(/*this.theMap.getPGhost().get(k)[1] / this.theMap.getTailleCase()*/BeliefState.listPGhostInit.get(k)[1] / BeliefState.tailleCase,/*this.theMap.getPGhost().get(k)[0] / this.theMap.getTailleCase()*/ BeliefState.listPGhostInit.get(k)[0] / BeliefState.tailleCase,'U');
 									BeliefState actualBeliefState = new BeliefState(state, false);
 									actualBeliefState.listPGhost.get(k).clear();
 									actualBeliefState.compteurPeur.set(k, 0);
@@ -743,6 +821,8 @@ public class BeliefState implements Comparable{
 		for(int i = 0; i < listBeliefState.size(); i++) {
 			BeliefState state = listBeliefState.get(i);
 			if(!state.listPGhost.get(gId).contains(posG)) {
+				if(listBeliefState.size() == 1)
+					System.out.println("problem");
 				listBeliefState.remove(i);
 				i--;
 			}
@@ -870,8 +950,8 @@ public class BeliefState implements Comparable{
 			case 'R': posPcopy.y--; break;
 			}
 			if(posGhost.x == this.pacmanPos.x && posGhost.y == this.pacmanPos.y && posPcopy.x == posGhost.x + i && posPcopy.y == posGhost.y + j) {
-				Integer[] initPosG = this.theMap.getPGhost().get(k);
-				this.moveGhostTo(initPosG[1] / this.theMap.getTailleCase(), initPosG[0] / this.theMap.getTailleCase(), k, 'U'/*, true*/);
+				/*Integer*/int[] initPosG = /*this.theMap.getPGhost().get(k)*/BeliefState.listPGhostInit.get(k);
+				this.moveGhostTo(initPosG[1] / /*this.theMap.getTailleCase()*/ BeliefState.tailleCase, initPosG[0] / /*this.theMap.getTailleCase()*/BeliefState.tailleCase, k, 'U'/*, true*/);
 				this.score += Ghost.SCORE_FANTOME;
 				return false;
 			}
@@ -886,16 +966,16 @@ public class BeliefState implements Comparable{
 		if(posGhost.x == this.pacmanPos.x && posGhost.y == this.pacmanPos.y) {
 			if(this.compteurPeur.get(k) == 0) {
 				this.life--;
-				this.moveTo(this.theMap.getPMY() / this.theMap.getTailleCase(),this.theMap.getPMX() / this.theMap.getTailleCase(), 'U');
-				for(int l = 0; l < this.theMap.getPGhost().size(); l++) {
-					Integer[] initPosG = this.theMap.getPGhost().get(l);
-					this.moveGhostTo(initPosG[1] / this.theMap.getTailleCase(), initPosG[0] / this.theMap.getTailleCase(), l, 'U'/*, false*/);
+				this.moveTo(/*this.theMap.getPMY()*/ BeliefState.pacmanYInit / /*this.theMap.getTailleCase()*/ BeliefState.tailleCase,/*this.theMap.getPMX()*/ BeliefState.pacmanXInit / /*this.theMap.getTailleCase()*/ BeliefState.tailleCase, 'U');
+				for(int l = 0; l < /*this.theMap.getPGhost().size()*/ BeliefState.listPGhostInit.size(); l++) {
+					/*Integer*/int[] initPosG = /*this.theMap.getPGhost().get(l)*/ BeliefState.listPGhostInit.get(l);
+					this.moveGhostTo(initPosG[1] / /*this.theMap.getTailleCase()*/ BeliefState.tailleCase, initPosG[0] / /*this.theMap.getTailleCase()*/BeliefState.tailleCase, l, 'U'/*, false*/);
 				}
 				return true;
 			}
 			else {
-				Integer[] initPosG = this.theMap.getPGhost().get(k);
-				this.moveGhostTo(initPosG[1] / this.theMap.getTailleCase(), initPosG[0] / this.theMap.getTailleCase(), k, 'U'/*, false*/);
+				/*Integer*/int[] initPosG = /*this.theMap.getPGhost().get(k)*/BeliefState.listPGhostInit.get(k);
+				this.moveGhostTo(initPosG[1] / /*this.theMap.getTailleCase()*/ BeliefState.tailleCase, initPosG[0] / /*this.theMap.getTailleCase()*/ BeliefState.tailleCase, k, 'U'/*, false*/);
 				this.score += Ghost.SCORE_FANTOME;
 				return false;
 			}
@@ -941,6 +1021,48 @@ public class BeliefState implements Comparable{
 		}
 		return s;
 	}
+	
+	/*private static HashSet<String> visible;*/
+	
+	/*public void save(PrintStream out) {
+		out.println(BeliefState.taille);
+		for(int i = 0; i < this.map.length; i++) {
+			for(int j = 0; j < this.map[0].length; j++) {
+				out.print(this.map[i][j]);
+			}
+			out.println("");
+		}
+		out.println(this.pacmanPos.x);
+		out.println(this.pacmanPos.y);
+		out.println(BeliefState.pacmanXInit);
+		out.println(BeliefState.pacmanYInit);
+		out.println(BeliefState.tailleCase);
+		out.println(this.pacmanPos.dir);
+		out.println(this.score);
+		out.println(this.life);
+		out.println(this.nbrOfGommes);
+		out.println(this.nbrOfSuperGommes);
+		out.println(this.listPGhost.size());
+		for(int i = 0; i < this.listPGhost.size(); i++) {
+			out.println(this.compteurPeur.get(i));
+			out.println(this.listPGhost.get(i).size());
+			Iterator<Position> itPos = this.listPGhost.get(i).iterator();
+			while(itPos.hasNext()) {
+				Position posG = itPos.next();
+				out.println(posG.x + " " + posG.y + " " + posG.dir);
+			}
+			int[] pos = this.listPGhostInit.get(i);
+			out.println(pos[0] + " " + pos[1]);
+		}
+		out.println(BeliefState.gamePositions.size());
+		for(int[] pos:BeliefState.gamePositions) {
+			out.println(pos[0] + " " + pos[1]);
+		}
+		for(String visiblePos: BeliefState.visible) {
+			out.println(visiblePos);
+		}
+		
+	}*/
 
 	/**
 	 * return the position of one of the ghost
@@ -999,11 +1121,27 @@ public class BeliefState implements Comparable{
 		return this.map[i][j];
 	}
 	
+	public char[][] getMap(){
+		return this.map;
+	}
+	
 	public Position getPacmanPosition() {
 		return this.pacmanPos;
 	}
 	
 	public TreeSet<Position> getGhostPositions(int i){
 		return this.listPGhost.get(i);
+	}
+	public static boolean isVisible(int row1, int column1, int row2, int column2) {
+		//System.out.println("isVisible " + row1 + "," + column1 + ";" + row2 + "," + column2);
+		if(row1 == row2) {
+			//System.out.println("row " + row1 + " columns " + column1 + "," + column2);
+			return BeliefState.visible.contains(row1+","+Math.min(column1,column2)+";"+row2+","+Math.max(column1, column2));
+		}
+		if(column1 == column2) {
+			//System.out.println("column " + column1 + " rows " + row1 + "," + row2);
+			return BeliefState.visible.contains(Math.min(row1, row2)+","+column1+";"+Math.max(row1, row2)+","+column2);
+		}
+		return false;
 	}
 }
