@@ -110,9 +110,9 @@ public class AI{
 	
 	// Parameters to fiddle with
 
-	static int memory_refresh_rate = 2;
+	static int memory_refresh_rate = 3;
 	static int maxdepth = 3;
-	static String aggregate_method = "mean";
+	static String aggregate_method = "min";
 	static int value_per_life = 15;
 	static int death_penatly = 1000;
 
@@ -130,6 +130,7 @@ public class AI{
 		hscore+= bstate.getScore();
 		//hscore+= bstate.getLife() * value_per_life; No point in that as long as we only have a single life
 		if (bstate.getLife()==0) hscore -= death_penatly;
+		hscore -= 2 * nearest_gom_distance(bstate);
 
 		return hscore;
 	}
@@ -139,7 +140,7 @@ public class AI{
 	public static float aggregateValues(ArrayList<Float> values) {
 		if(values.isEmpty())return 0;
 		// Mean version
-		if (aggregate_method=="mean") {
+		if (Objects.equals(aggregate_method, "mean")) {
 			float sum= 0;
 			for(Float value : values) {
 				sum+=value;
@@ -148,18 +149,39 @@ public class AI{
 			return v;
 		}
 		
-		else if (aggregate_method=="min"){
+		else if (Objects.equals(aggregate_method, "min")){
 			return Collections.min(values);
 		}
 		return 0;
 	}
 
 	public static boolean opposite_direction(String direction1, char direction2){
-        return (direction1 == "UP" && direction2== 'D') ||
-                (direction1 == "DOWN" && direction2 == 'U') ||
-                (direction1 == "RIGHT" && direction2 == 'L') ||
-                (direction1 == "LEFT" && direction2 == 'R');
+        return (Objects.equals(direction1, "UP") && direction2== 'D') ||
+                (Objects.equals(direction1, "DOWN") && direction2 == 'U') ||
+                (Objects.equals(direction1, "RIGHT") && direction2 == 'L') ||
+                (Objects.equals(direction1, "LEFT") && direction2 == 'R');
     }
+
+	public static int nearest_gom_distance(BeliefState bstate){
+		Position pacmanpos = bstate.getPacmanPos();
+
+		int max_search_distance = 25;
+		int i; int k; int j;
+		for(k=1; k<= max_search_distance; k++){
+			for(i=-k; i<=k; i++){
+				for(j=-k; j<=k; j++){
+					if(pacmanpos.x + i >= 25 ||
+					pacmanpos.x +i < 0 ||
+					pacmanpos.y + j >= 25 ||
+					pacmanpos.y +j < 0)continue;
+					if(bstate.getMap(pacmanpos.x+i, pacmanpos.y+j)=='.') {
+						return Math.abs(i) + Math.abs(j);
+					}
+				}
+			}
+		}
+		return 70;
+	}
 	
 	
 	// As we save values based on beliefstates and not on results, had to rework this function to work on  beliefstates
