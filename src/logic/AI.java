@@ -1,8 +1,6 @@
 package logic;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.TreeSet;
+import java.util.*;
 
 import view.Gomme;
 
@@ -108,17 +106,25 @@ public class AI{
 	public static String[] pacmanactions = new String[]{"UP","LEFT","RIGHT","DOWN"};
 	
 	// We want our memory to work on the most general case as possible, and since results can be much more diverse than beliefstates, we use belifstates as keys to our memory
-	public static HashMap<String,Float> memory = new HashMap<String, Float>(); 
+	public static TreeMap<String,Float> memory = new TreeMap<String, Float>();
 	
 	// Parameters to fiddle with
-	public static int maxdepth = 4;
-	public static String aggregate_method = "mean";
-	public static int value_per_life = 15;
-	public static int death_penatly = 10_00;
+
+	static int memory_refresh_rate = 2;
+	static int maxdepth = 3;
+	static String aggregate_method = "mean";
+	static int value_per_life = 15;
+	static int death_penatly = 1000;
+
+	static final int turnback_penalty = 98;
+
+	static int number_of_moves = 0;
+
+	static final float max_expand=10;
 	
 	
 	public static float heuristic (BeliefState bstate) {
-		
+		if (bstate.getLife()==0) return 0;
 		// Very  primitive heuristic, we only consider current score and wether pacman is alive or dead
 		float hscore = 0;
 		hscore+= bstate.getScore();
@@ -140,22 +146,30 @@ public class AI{
 			}
 			float v = sum/values.size();
 			return v;
-			
 		}
 		
 		else if (aggregate_method=="min"){
-			float min = Integer.MAX_VALUE;
-			for (float value : values){
-				if(value < min) min = value;
-			}
-			return min;
+			return Collections.min(values);
 		}
 		return 0;
 	}
+
+	public static boolean opposite_direction(String direction1, char direction2){
+        return (direction1 == "UP" && direction2== 'D') ||
+                (direction1 == "DOWN" && direction2 == 'U') ||
+                (direction1 == "RIGHT" && direction2 == 'L') ||
+                (direction1 == "LEFT" && direction2 == 'R');
+    }
 	
 	
 	// As we save values based on beliefstates and not on results, had to rework this function to work on  beliefstates
 	public static float treesearch(BeliefState bstate, int currentdepth) {
+		float childvalue;
+		ArrayList<BeliefState> beliefchildren;
+		ArrayList<Float> children_values;
+		float nbchildren;
+		float expand_proba;
+		Result result;
 		
 		// If we reach a leaf, stop expanding and return the heuristic value
 		if(currentdepth == maxdepth) return heuristic(bstate);
@@ -163,16 +177,26 @@ public class AI{
 		float child_value;
 		float max_actionvalue = Float.MIN_VALUE;
 
+		Plans plans = bstate.extendsBeliefState();
+		for(int i=0; i<plans.size(); i++){
+			result = plans.getResult(i);
+			beliefchildren = result.getBeliefStates();
 
-		for(String action : pacmanactions){
+			nbchildren = beliefchildren.size();
+			expand_proba = max_expand / nbchildren;
 
-			ArrayList<Float> children_values = new ArrayList<Float>();
+			children_values = new ArrayList<Float>();
 
-			Result result = bstate.extendsBeliefState(action);
-			for(BeliefState beliefchild : result.getBeliefStates()){
+			for(BeliefState beliefchild : beliefchildren){
+				if(Math.random()> expand_proba)continue;
+
 				if(memory.containsKey(beliefchild.toString())) {
 					// If this beliefstate has already been considered, output the already known answer
 					child_value =  memory.get(beliefchild.toString());
+				}
+				else if(beliefchild.getLife()==0){
+					child_value = heuristic(beliefchild);
+					memory.put(beliefchild.toString(), child_value);
 				}
 				else {
 					child_value = treesearch(beliefchild, currentdepth + 1);
@@ -180,7 +204,12 @@ public class AI{
 				}
 				children_values.add(child_value);
 			}
+
 			float actionvalue = aggregateValues(children_values);
+			/*if (opposite_direction(plans.getAction(i).get(0), bstate.getPacmanPos().getDirection() )) {
+				actionvalue -= turnback_penalty;
+				System.out.println("U-turn detected");
+			}*/
 			if(actionvalue > max_actionvalue) max_actionvalue = actionvalue;
 		}
 
@@ -194,7 +223,7 @@ public class AI{
 	 * @return a string describing the next action (among PacManLauncher.UP/DOWN/LEFT/RIGHT)
 	 */
 	public static String findNextMove(BeliefState beliefState) {
-		//memory = new HashMap<String, Float>(); Tried reseting memory at every new search to reduce containsKey runtime : not a good idea
+		if(number_of_moves%memory_refresh_rate==0) memory = new TreeMap<String, Float>(); //Tried reseting memory at every new search to reduce containsKey runtime : not a good idea
 		Plans plans = beliefState.extendsBeliefState();
 		
 		float max_utility = Integer.MIN_VALUE;
@@ -206,18 +235,24 @@ public class AI{
 		for(int i=0; i<plans.size(); i++){
 			Result plan_result = plans.getResult(i);
 			String plan_action = plans.getAction(i).get(0);
+
 			belief_utilities = new ArrayList<Float>();
 			
 			for(BeliefState bstate : plan_result.getBeliefStates()) {
 				belief_utilities.add(treesearch(bstate, 0));
 			}			
 			plan_utility = aggregateValues(belief_utilities);
+
+			if (opposite_direction(plan_action, beliefState.getPacmanPos().getDirection() )) {
+				plan_utility -= turnback_penalty;
+			}
 			
 			if(plan_utility > max_utility){
 				max_utility = plan_utility;
 				chosen_action = plan_action;
 			}
 		}
+		number_of_moves++;
 		return chosen_action;
 	}
 }
