@@ -58,26 +58,15 @@ public class Ghost extends Entite {
 	/**
 	 *	Choisir une direction aleatoire
 	 */
-	public boolean move () {
+	public int move (boolean with) {
 		if (this.compteurPeur == 0) {
 			this.setEtatNormal();
 		}
 		if (this.compteurPeur > 0) {
 			this.compteurPeur--;
 		}
-		return checkCroisement(this.previousMove, true);
+		return checkCroisement(this.previousMove, with);
 	}
-	
-	public boolean moveWithout () {
-		if (this.compteurPeur == 0) {
-			this.setEtatNormal();
-		}
-		if (this.compteurPeur > 0) {
-			this.compteurPeur--;
-		}
-		return checkCroisement(this.previousMove, false);
-	}
-
 
 	/**
 	 * deplace l'entite dans la direction demander
@@ -180,60 +169,64 @@ public class Ghost extends Entite {
 	 * [checkCroisement description]
 	 * @param String toward [description]
 	 */
-	public boolean checkCroisement (String toward, boolean moveBeliefState) {
-		boolean haveMoved = false, reInit = false;
+	public int checkCroisement (String toward, boolean moveBeliefState) {
+		boolean haveMoved = false;
+		int reInit = 0;
 		Figure[][] map = this.map.getMap();
 
-		if(this.getX() % this.map.getTailleCase() == 0 && this.getY() % this.map.getTailleCase() == 0) {
-			int xG = this.getX() / this.map.getTailleCase();
-			int yG = this.getY() / this.map.getTailleCase();
-			int xP = this.map.getBeliefState().getPacmanPos().y;
-			int yP = this.map.getBeliefState().getPacmanPos().x;
-			if(this.map.isVisible(this.map.getBeliefState().getPGhost(this.id).x, this.map.getBeliefState().getPGhost(this.id).y, yP, xP)) {
+		if(this.getX() % this.map.getTailleCase() == 0 && this.getY() % this.map.getTailleCase() == 0) {//si le ghost se trouve sur une case
+			int yG = this.getX() / this.map.getTailleCase();//position actuelle du ghost
+			int xG = this.getY() / this.map.getTailleCase();
+			Position pacmanOldPos = this.map.getBeliefState().getPacmanOldPosition();//position avant deplacement de Pacman
+			int xP = pacmanOldPos.x, yP = pacmanOldPos.y;
+			
+			if(this.map.isVisible(xG, yG, xP, yP)) {
 				this.figures.setVisible(true);
 			}
 			else
 				this.figures.setVisible(false);
-			if(this.map.isVisible(yG, xG, yP, xP) && this.compteurPeur == 0) {
-				if(xG > xP) {
-					this.move(PacManLauncher.LEFT);
+			if(this.map.isVisible(xG, yG, xP, yP) && this.compteurPeur == 0) {//si le ghost etait visible et n'avait pas peur
+				if(xG > xP) {//il prend la direction du Pacman
+					this.move(PacManLauncher.UP);
 					if(moveBeliefState)
-						reInit = reInit || this.map.getBeliefState().moveGhost(0, -1, this.id, this.previousMove.charAt(0));
+						reInit = this.map.getBeliefState().moveGhost(-1, 0, this.id, this.previousMove.charAt(0));
 				}
 				else {
 					if(xG < xP) {
-						this.move(PacManLauncher.RIGHT);
+						this.move(PacManLauncher.DOWN);
 						if(moveBeliefState)
-							reInit = reInit || this.map.getBeliefState().moveGhost(0, 1, this.id, this.previousMove.charAt(0));
+							reInit = this.map.getBeliefState().moveGhost(1, 0, this.id, this.previousMove.charAt(0));
 					}
 					else {
 						if(yG < yP) {
-							this.move(PacManLauncher.DOWN);
+
+							this.move(PacManLauncher.RIGHT);
 							if(moveBeliefState)
-								reInit = reInit || this.map.getBeliefState().moveGhost(1, 0, this.id, this.previousMove.charAt(0));
+								reInit = this.map.getBeliefState().moveGhost(0, 1, this.id, this.previousMove.charAt(0));
 						}
 						else {
 							if(yG > yP) {
-								this.move(PacManLauncher.UP);
+								this.move(PacManLauncher.LEFT);
 								if(moveBeliefState)
-									reInit = reInit || this.map.getBeliefState().moveGhost(-1, 0, this.id, this.previousMove.charAt(0));
+									reInit = this.map.getBeliefState().moveGhost(0, -1, this.id, this.previousMove.charAt(0));
 							}
 							else {
-								switch(this.map.getBeliefState().getPacmanPos().dir) {
+								System.out.println("problem");
+								/*switch(this.map.getBeliefState().getPacmanPos().dir) {
 								case 'U': this.move(PacManLauncher.DOWN); break;
 								case 'D': this.move(PacManLauncher.UP); break;
 								case 'L': this.move(PacManLauncher.RIGHT); break;
 								case 'R': this.move(PacManLauncher.LEFT); break;
 								}
 								if(moveBeliefState)
-									reInit = reInit || this.map.getBeliefState().moveGhost(0, 0, this.id, this.previousMove.charAt(0));
+									reInit = reInit || this.map.getBeliefState().moveGhost(0, 0, this.id, this.previousMove.charAt(0));*/
 							}
 						}
 					}
 				}
 				haveMoved = true;
 			}
-			else {
+			else {//si le ghost n'est pas visible ou qu'il a peur
 				int[] colLign = this.getColLign();
 				int colonne = colLign[0];
 				int ligne = colLign[1];
@@ -253,51 +246,51 @@ public class Ghost extends Entite {
 				case PacManLauncher.UP :
 					if (fleft.getClass().getName().compareTo("view.Wall") != 0 || fright.getClass().getName().compareTo("view.Wall") != 0) {
 						caseAround.remove(fdown);
-						this.chooseMove(toward, caseAround, fup, fdown, fleft, fright, moveBeliefState);
+						reInit = this.chooseMove(toward, caseAround, fup, fdown, fleft, fright, moveBeliefState);
 						haveMoved = true;
 					} else if (fup.getClass().getName().compareTo("view.Wall") == 0) {
-						this.chooseMove(toward, caseAround, fup, fdown, fleft, fright, moveBeliefState);
+						reInit = this.chooseMove(toward, caseAround, fup, fdown, fleft, fright, moveBeliefState);
 						haveMoved = true;
 					}
 					break;
 				case PacManLauncher.DOWN :
 					if (fleft.getClass().getName().compareTo("view.Wall") != 0 || fright.getClass().getName().compareTo("view.Wall") != 0) {
 						caseAround.remove(fup);
-						this.chooseMove(toward, caseAround, fup, fdown, fleft, fright, moveBeliefState);
+						reInit = this.chooseMove(toward, caseAround, fup, fdown, fleft, fright, moveBeliefState);
 						haveMoved = true;
 					} else if (fdown.getClass().getName().compareTo("view.Wall") == 0) {
-						this.chooseMove(toward, caseAround, fup, fdown, fleft, fright, moveBeliefState);
+						reInit = this.chooseMove(toward, caseAround, fup, fdown, fleft, fright, moveBeliefState);
 						haveMoved = true;
 					}
 					break;
 				case PacManLauncher.LEFT :
 					if (fup.getClass().getName().compareTo("view.Wall") != 0 || fdown.getClass().getName().compareTo("view.Wall") != 0) {
 						caseAround.remove(fright);
-						this.chooseMove(toward, caseAround, fup, fdown, fleft, fright, moveBeliefState);
+						reInit = this.chooseMove(toward, caseAround, fup, fdown, fleft, fright, moveBeliefState);
 						haveMoved = true;
 					} else if (fleft.getClass().getName().compareTo("view.Wall") == 0) {
-						this.chooseMove(toward, caseAround, fup, fdown, fleft, fright, moveBeliefState);
+						reInit = this.chooseMove(toward, caseAround, fup, fdown, fleft, fright, moveBeliefState);
 						haveMoved = true;
 					}
 					break;
 				case PacManLauncher.RIGHT :
 					if (fup.getClass().getName().compareTo("view.Wall") != 0 || fdown.getClass().getName().compareTo("view.Wall") != 0) {
 						caseAround.remove(fleft);
-						this.chooseMove(toward, caseAround, fup, fdown, fleft, fright, moveBeliefState);
+						reInit = this.chooseMove(toward, caseAround, fup, fdown, fleft, fright, moveBeliefState);
 						haveMoved = true;
 					} else if (fright.getClass().getName().compareTo("view.Wall") == 0) {
-						this.chooseMove(toward, caseAround, fup, fdown, fleft, fright, moveBeliefState);
+						reInit = this.chooseMove(toward, caseAround, fup, fdown, fleft, fright, moveBeliefState);
 						haveMoved = true;
 					}
 					break;
 				}
 			}
-			if(!haveMoved && moveBeliefState) {
+			if(!haveMoved && moveBeliefState) {//si il n'a pas bouge il garde la meme direction
 				switch(toward){
-				case PacManLauncher.UP: this.map.getBeliefState().moveGhost(-1, 0, this.id, this.previousMove.charAt(0)); /*System.out.println("moveGhost(-1, 0, " + this.id + ", " + this.previousMove.charAt(0) + ")");*/ break;
-				case PacManLauncher.DOWN: this.map.getBeliefState().moveGhost(1, 0, this.id, this.previousMove.charAt(0)); /*System.out.println("moveGhost(1, 0, " + this.id + ", " + this.previousMove.charAt(0) + ")");*/ break;
-				case PacManLauncher.LEFT: this.map.getBeliefState().moveGhost(0, -1, this.id, this.previousMove.charAt(0)); /*System.out.println("moveGhost(0, -1, " + this.id + ", " + this.previousMove.charAt(0) + ")");*/ break;
-				case PacManLauncher.RIGHT: this.map.getBeliefState().moveGhost(0, 1, this.id, this.previousMove.charAt(0)); /*System.out.println("moveGhost(0, 1, " + this.id + ", " + this.previousMove.charAt(0) + ")");*/ break;
+				case PacManLauncher.UP: reInit = this.map.getBeliefState().moveGhost(-1, 0, this.id, this.previousMove.charAt(0)); /*System.out.println("moveGhost(-1, 0, " + this.id + ", " + this.previousMove.charAt(0) + ")");*/ break;
+				case PacManLauncher.DOWN: reInit = this.map.getBeliefState().moveGhost(1, 0, this.id, this.previousMove.charAt(0)); /*System.out.println("moveGhost(1, 0, " + this.id + ", " + this.previousMove.charAt(0) + ")");*/ break;
+				case PacManLauncher.LEFT: reInit = this.map.getBeliefState().moveGhost(0, -1, this.id, this.previousMove.charAt(0)); /*System.out.println("moveGhost(0, -1, " + this.id + ", " + this.previousMove.charAt(0) + ")");*/ break;
+				case PacManLauncher.RIGHT: reInit = this.map.getBeliefState().moveGhost(0, 1, this.id, this.previousMove.charAt(0)); /*System.out.println("moveGhost(0, 1, " + this.id + ", " + this.previousMove.charAt(0) + ")");*/ break;
 				}
 			}
 			/*if(moveBeliefState && this.id == (this.map.getPGhost().size() - 1)) {
@@ -311,9 +304,9 @@ public class Ghost extends Entite {
 		return reInit;
 	}
 
-	public void chooseMove(String toward, ArrayList<Figure> listF, Figure fup, Figure fdown, Figure fleft, Figure fright, boolean moveBeliefState) {
+	public int chooseMove(String toward, ArrayList<Figure> listF, Figure fup, Figure fdown, Figure fleft, Figure fright, boolean moveBeliefState) {
 		ArrayList<Figure> toGo =  new ArrayList<Figure>();
-
+		int returnedValue = 0;
 		for (Figure f : listF) {
 			if (f.getClass().getName().compareTo("view.Wall") != 0) {
 				toGo.add(f);
@@ -326,29 +319,30 @@ public class Ghost extends Entite {
 			this.move(toward);
 			if(moveBeliefState) {
 				switch(toward){
-				case PacManLauncher.UP: this.map.getBeliefState().moveGhost(-1, 0, this.id, this.previousMove.charAt(0)); break;
-				case PacManLauncher.DOWN: this.map.getBeliefState().moveGhost(1, 0, this.id, this.previousMove.charAt(0)); break;
-				case PacManLauncher.LEFT: this.map.getBeliefState().moveGhost(0, -1, this.id, this.previousMove.charAt(0)); break;
-				case PacManLauncher.RIGHT: this.map.getBeliefState().moveGhost(0, 1, this.id, this.previousMove.charAt(0)); break;
+				case PacManLauncher.UP: returnedValue = this.map.getBeliefState().moveGhost(-1, 0, this.id, this.previousMove.charAt(0)); break;
+				case PacManLauncher.DOWN: returnedValue = this.map.getBeliefState().moveGhost(1, 0, this.id, this.previousMove.charAt(0)); break;
+				case PacManLauncher.LEFT: returnedValue = this.map.getBeliefState().moveGhost(0, -1, this.id, this.previousMove.charAt(0)); break;
+				case PacManLauncher.RIGHT: returnedValue = this.map.getBeliefState().moveGhost(0, 1, this.id, this.previousMove.charAt(0)); break;
 				}
 			}
 		} else if (nextMove == fup) {
 			this.move(PacManLauncher.UP);
 			if(moveBeliefState)
-				this.map.getBeliefState().moveGhost(-1, 0, this.id, this.previousMove.charAt(0));
+				returnedValue = this.map.getBeliefState().moveGhost(-1, 0, this.id, this.previousMove.charAt(0));
 		} else if (nextMove == fdown) {
 			this.move(PacManLauncher.DOWN);
 			if(moveBeliefState)
-				this.map.getBeliefState().moveGhost(1, 0, this.id, this.previousMove.charAt(0));
+				returnedValue = this.map.getBeliefState().moveGhost(1, 0, this.id, this.previousMove.charAt(0));
 		} else if (nextMove == fleft) {
 			this.move(PacManLauncher.LEFT);
 			if(moveBeliefState)
-				this.map.getBeliefState().moveGhost(0, -1, this.id, this.previousMove.charAt(0));
+				returnedValue = this.map.getBeliefState().moveGhost(0, -1, this.id, this.previousMove.charAt(0));
 		} else if (nextMove == fright) {
 			this.move(PacManLauncher.RIGHT);
 			if(moveBeliefState)
-				this.map.getBeliefState().moveGhost(0, 1, this.id, this.previousMove.charAt(0));
+				returnedValue = this.map.getBeliefState().moveGhost(0, 1, this.id, this.previousMove.charAt(0));
 		}
+		return returnedValue;
 	}
 
 	/**

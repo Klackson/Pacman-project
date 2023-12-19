@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 //import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.Scanner;
 import java.util.TreeSet;
 
@@ -92,11 +93,10 @@ class Position implements Comparable{
  */
 public class BeliefState implements Comparable{
 	private char map[][];
-	private ArrayList</*HashMap<String, Position>*/TreeSet<Position>> listPGhost;
-	private Position pacmanPos;
+	private ArrayList<TreeSet<Position>> listPGhost;
+	private Position pacmanPos, pacmanOldPos;
 	private int nbrOfGommes, nbrOfSuperGommes, score, life;
 	private ArrayList<Integer> compteurPeur;
-	//private Map theMap;
 	private static ArrayList<int[]> gamePositions;
 	private static HashSet<String> visible;
 	private static int pacmanXInit, pacmanYInit;
@@ -116,7 +116,7 @@ public class BeliefState implements Comparable{
 	}
 	/**
 	 * create a new BeliefState object
-	 * @param taille the current version of the Pacman man discribing the position of (super) gums
+	 * @param theMap the current version of the Pacman man discribing the position of (super) gums
 	 * @param score the current score
 	 * @param life the number of remaining lifes for Pacman
 	 */
@@ -124,11 +124,11 @@ public class BeliefState implements Comparable{
 		BeliefState.taille = taille;
 		this.map = new char[BeliefState.taille][BeliefState.taille];
 		this.pacmanPos = new Position(0,0,'U');
-		this.listPGhost = new ArrayList</*HashMap<String, Position>*/TreeSet<Position>>();
+		this.pacmanOldPos = this.pacmanPos;
+		this.listPGhost = new ArrayList<TreeSet<Position>>();
 		this.nbrOfGommes = 0;
 		this.score = score;
 		this.compteurPeur = new ArrayList<Integer>();
-		//this.theMap = theMap;
 		this.life = life;
 	}
 	
@@ -218,7 +218,7 @@ public class BeliefState implements Comparable{
 				return comp;
 		}
 		for(int i = 0; i < this.listPGhost.size(); i++) {
-			/*HashMap<String, Position>*/TreeSet<Position> posGhost1 = this.listPGhost.get(i), posGhost2 = bs.listPGhost.get(i);
+			TreeSet<Position> posGhost1 = this.listPGhost.get(i), posGhost2 = bs.listPGhost.get(i);
 			comp = posGhost1.size() - posGhost2.size();
 			if(comp != 0)
 				return comp;
@@ -246,13 +246,13 @@ public class BeliefState implements Comparable{
 				this.modifyMap(i, j, toCopy.map[i][j]);
 			}
 		}
+		this.pacmanOldPos = toCopy.pacmanOldPos.clone();
 		if(!isDead) {
 			this.listPGhost.clear();
-			for(/*HashMap<String, Position>*/TreeSet<Position> listP: toCopy.listPGhost) {
-				//HashMap<String, Position> newListP = new HashMap<String, Position>();
+			for(TreeSet<Position> listP: toCopy.listPGhost) {
 				TreeSet<Position> newListP = new TreeSet<Position>();
 				for(Position pos: listP.descendingSet()) {
-					newListP.add(/*pos.toString(), */pos.clone());
+					newListP.add(pos.clone());
 				}
 				this.listPGhost.add(newListP);
 			}
@@ -262,7 +262,7 @@ public class BeliefState implements Comparable{
 		}
 		else {
 			this.life = toCopy.life - 1;
-			this.moveTo(/*this.theMap.getPMY() / this.theMap.getTailleCase()*/BeliefState.pacmanYInit / BeliefState.tailleCase, /*this.theMap.getPMX() / this.theMap.getTailleCase()*/BeliefState.pacmanXInit / BeliefState.tailleCase, 'U');
+			this.moveTo(BeliefState.pacmanYInit / BeliefState.tailleCase, BeliefState.pacmanXInit / BeliefState.tailleCase, 'U');
 		}
 	}
 
@@ -277,8 +277,8 @@ public class BeliefState implements Comparable{
 		case '.': nbrOfGommes++; break;
 		case '*': nbrOfGommes++; nbrOfSuperGommes++; break;
 		case 'P': this.pacmanPos.x = i;this.pacmanPos.y = j; break;
-		case 'F': /*HashMap<String, Position>*/TreeSet<Position> posGhost = new /*HashMap<String, Position>*/TreeSet<Position>(); Position pos = new Position(i, j, 'U'); posGhost.add(/*pos.toString(),*/ pos); this.listPGhost.add(posGhost); this.compteurPeur.add(0); /*this.isBlocked.add(false);*/ break;
-		case 'B': this.pacmanPos.x = i;this.pacmanPos.y = j; /*HashMap<String, Position>*/TreeSet<Position> posGhost2 = new /*HashMap<String, Position>*/TreeSet<Position>(); Position pos2 = new Position(i, j, 'U'); posGhost2.add(/*pos2.toString(),*/ pos2); this.listPGhost.add(posGhost2); this.compteurPeur.add(0); /*this.isBlocked.add(false);*/ break;
+		case 'F': TreeSet<Position> posGhost = new TreeSet<Position>(); Position pos = new Position(i, j, 'U'); posGhost.add(pos); this.listPGhost.add(posGhost); this.compteurPeur.add(0);  break;
+		case 'B': this.pacmanPos.x = i;this.pacmanPos.y = j; TreeSet<Position> posGhost2 = new TreeSet<Position>(); Position pos2 = new Position(i, j, 'U'); posGhost2.add(pos2); this.listPGhost.add(posGhost2); this.compteurPeur.add(0); break;
 		}
 		this.map[i][j] = val;
 	}
@@ -313,10 +313,10 @@ public class BeliefState implements Comparable{
 				}
 			}
 			else {
-				currentBeliefState = this.move(0, 0, currentPos, 'N');
+				currentBeliefState = this.move(0, 0, currentPos, 'U');
 			}
 		} else {
-			currentBeliefState = this.move(0, 0, currentPos, 'N');
+			currentBeliefState = this.move(0, 0, currentPos, 'U');
 		} break;
 		case 'D': if(this.pacmanPos.x + 1 < this.map.length) {
 			char nextPos = this.map[this.pacmanPos.x + 1][this.pacmanPos.y];
@@ -329,11 +329,11 @@ public class BeliefState implements Comparable{
 				}
 			}
 			else {
-				currentBeliefState = this.move(0, 0, currentPos, 'N');
+				currentBeliefState = this.move(0, 0, currentPos, 'D');
 			}
 		}
 		else{
-			currentBeliefState = this.move(0, 0, currentPos, 'N');
+			currentBeliefState = this.move(0, 0, currentPos, 'D');
 		} break;
 		case 'L': if(this.pacmanPos.y > 0) {
 			char nextPos = this.map[this.pacmanPos.x][this.pacmanPos.y - 1];
@@ -346,11 +346,11 @@ public class BeliefState implements Comparable{
 				}
 			}
 			else {
-				currentBeliefState = this.move(0, 0, currentPos, 'N');
+				currentBeliefState = this.move(0, 0, currentPos, 'L');
 			}
 		}
 		else{
-			currentBeliefState = this.move(0, 0, currentPos, 'N');
+			currentBeliefState = this.move(0, 0, currentPos, 'L');
 		} break;
 		case 'R': if(this.pacmanPos.y + 1 < this.map[0].length) {
 			char nextPos = this.map[this.pacmanPos.x][this.pacmanPos.y + 1];
@@ -363,47 +363,47 @@ public class BeliefState implements Comparable{
 				}
 			}
 			else {
-				currentBeliefState = this.move(0, 0, currentPos, 'N');
+				currentBeliefState = this.move(0, 0, currentPos, 'R');
 			}
 		}
 		else {
-			currentBeliefState = this.move(0, 0, currentPos, 'N');
+			currentBeliefState = this.move(0, 0, currentPos, 'R');
 		} break;
 		}
 
 		boolean dead = false;
 		int l = 0;
-		for(/*HashMap<String, Position> hmap*/TreeSet<Position> treeSet: this.listPGhost) {
-			if(currentBeliefState.compteurPeur.get(l++) == 0 && treeSet.size() == 1) {
+		for(TreeSet<Position> treeSet: this.listPGhost) {//test pour chaque ghost si il se trouve sur la case de PacMan et qu'il n'a pas peur (en gros PacMan mort)
+			if(currentBeliefState.compteurPeur.get(l++) == 0 && treeSet.size() == 1) {//ghost n'a pas peur et une seule position possible
 				Position pos = treeSet.first();
-				if(pos.x == currentBeliefState.pacmanPos.x && pos.y == currentBeliefState.pacmanPos.y) {
-					dead = true;
+				if(pos.x == currentBeliefState.pacmanPos.x && pos.y == currentBeliefState.pacmanPos.y) {//si le PacMan s'est deplace a la place du ghost
+					dead = true;//le PacMan est mort
 					break;
 				}
 			}
 		}
 		if(dead) {
-			listAlternativeBeliefState.add(new BeliefState(currentBeliefState, true));
+			listAlternativeBeliefState.add(new BeliefState(currentBeliefState, true));//ajoute un etat ou PacMan est mort
 		}
 		else {
 			listAlternativeBeliefState.add(currentBeliefState);
-			for(int k = 0; k < currentBeliefState.compteurPeur.size(); k++) {
+			for(int k = 0; k < currentBeliefState.compteurPeur.size(); k++) {//pour chaque fantome
 				ArrayList<BeliefState> tempListAlternativeBeliefState = new ArrayList<BeliefState>();
 
-				for(int indexBeliefState = 0; indexBeliefState < listAlternativeBeliefState.size(); indexBeliefState++) {
+				for(int indexBeliefState = 0; indexBeliefState < listAlternativeBeliefState.size(); indexBeliefState++) {//pour chaque BeliefState deja trouve
 					BeliefState state = listAlternativeBeliefState.get(indexBeliefState); 
 					int compteurPeur = state.compteurPeur.get(k);
-					if (compteurPeur > 0) {
+					if (compteurPeur > 0) {//decremente le compteur de peur
 						state.compteurPeur.set(k, compteurPeur - 2);
 					}
-					/*HashMap<String, Position>*/TreeSet<Position> posGhost = state.listPGhost.get(k), newPosGhost = new /*HashMap<String, Position>*/TreeSet<Position>();
+					TreeSet<Position> posGhost = state.listPGhost.get(k), newPosGhost = new TreeSet<Position>();
 					Iterator<Position> itPos = posGhost.iterator();
 					HashSet<String> hAlternativePos = new HashSet<String>();
-					while(itPos.hasNext()) {
+					while(itPos.hasNext()) {//pour chauqe position possible du ghost
 						Position posG = itPos.next();
 						boolean haveMoved = false;
-						if(BeliefState.isVisible(posG.x, posG.y, state.pacmanPos.x, state.pacmanPos.y) && compteurPeur == 0) {
-							if(posGhost.size() > 1) {
+						if(BeliefState.isVisible(posG.x, posG.y, this.pacmanPos.x, this.pacmanPos.y) && compteurPeur == 0) {//si le ghost est visible et n'est pas effraye
+							/*if(posGhost.size() > 1) {
 								Position newPos = posG.clone();
 								BeliefState actualBeliefState = new BeliefState(state, false);
 								actualBeliefState.listPGhost.get(k).clear();
@@ -445,26 +445,26 @@ public class BeliefState implements Comparable{
 										stateRemoved = new BeliefState(actualBeliefState, true);
 								}
 								else {
-									actualBeliefState.listPGhost.get(k).add(/*newPos.toString(),*/ newPos.clone());
+									actualBeliefState.listPGhost.get(k).add( newPos.clone());
 									if(!hAlternativePos.contains(newPos.toString())) {
 										tempListAlternativeBeliefState.add(actualBeliefState);
 										hAlternativePos.add(newPos.toString());
 									}
 								}
 							}
-							else {
+							else {*/
 								Position newPos = posG.clone();
-								if(newPos.x > state.pacmanPos.x) {
+								if(newPos.x > this.pacmanPos.x) {//le ghost effectue son mouvement dans la direction de Pacman
 									newPos.x--;
 									newPos.dir = 'U';
 								}
 								else {
-									if(newPos.x < state.pacmanPos.x) {
+									if(newPos.x < this.pacmanPos.x) {
 										newPos.x++;
 										newPos.dir = 'D';
 									}
 									else {
-										if(newPos.y < state.pacmanPos.y) {
+										if(newPos.y < this.pacmanPos.y) {
 											newPos.y++;
 											newPos.dir = 'R';
 										}
@@ -474,89 +474,110 @@ public class BeliefState implements Comparable{
 										}
 									}
 								}
-								if(newPos.x == state.pacmanPos.x && newPos.y == state.pacmanPos.y) {
+								if(newPos.x == state.pacmanPos.x && newPos.y == state.pacmanPos.y) {//si apres deplacement le ghost se trouve sur la meme case que Pacman
 									if(stateRemoved == null)
-										stateRemoved = new BeliefState(state, true);
+										stateRemoved = new BeliefState(state, true);//cree un etat ou Pacman est mort
 								}
 								else{
-									newPosGhost.add(/*newPos.toString(),*/ newPos);
+									newPosGhost.add(newPos);
 								}
-							}
-							haveMoved = true;
+							//}
+							haveMoved = true;//le ghost s'est deplace
 						}
-						else {
-							ArrayList<int[]> caseAround =  new ArrayList<int[]>();
-							ArrayList<Character> moveAround = new ArrayList<Character>();
+						else {//si le ghost n'est pas visible ou qu'il a peur
+							ArrayList<Position> caseAround =  new ArrayList<Position>();//on regarde quelles sont les mouvement possibles pour le ghost
 							boolean rightAvailable = false, leftAvailable = false, upAvailable = false, downAvailable = false;
 							if(posG.x > 0 && state.map[posG.x - 1][posG.y] != '#') {
-								int[] newPosG = {posG.x - 1, posG.y};
-								caseAround.add(newPosG);
-								moveAround.add('U');
+								caseAround.add(new Position(posG.x - 1, posG.y, 'U'));
 								upAvailable = true;
 							}
 							if(posG.x + 1 < state.map.length && state.map[posG.x + 1][posG.y] != '#') {
-								int[] newPosG = {posG.x + 1, posG.y};
-								caseAround.add(newPosG);
-								moveAround.add('D');
+								caseAround.add(new Position(posG.x + 1, posG.y, 'D'));
 								downAvailable = true;
 							}
 							if(posG.y > 0 && state.map[posG.x][posG.y - 1] != '#') {
-								int[] newPosG = {posG.x, posG.y - 1};
-								caseAround.add(newPosG);
-								moveAround.add('L');
+								caseAround.add(new Position(posG.x, posG.y - 1, 'L'));
 								leftAvailable = true;
 							}
 							if(posG.y + 1 < state.map[0].length && state.map[posG.x][posG.y + 1] != '#') {
-								int[] newPosG = {posG.x, posG.y + 1};
-								caseAround.add(newPosG);
-								moveAround.add('R');
+								caseAround.add(new Position(posG.x, posG.y + 1, 'R'));
 								rightAvailable = true;
 							}
 
-							int m = 0;
 							switch (posG.dir) {
 							case 'U' :
 								if (leftAvailable || rightAvailable) {
 									if(downAvailable) {
 										caseAround.remove(upAvailable?1:0);
-										moveAround.remove(upAvailable?1:0);
 									}
-									for(int[] newCase: caseAround) {
-										Position newPos = new Position(newCase[0], newCase[1], moveAround.get(m++));
-										if((newPos.x == state.pacmanPos.x && newPos.y == state.pacmanPos.y) || (posG.x == state.pacmanPos.x && posG.y == state.pacmanPos.y && newPos.x == this.pacmanPos.x && newPos.y == this.pacmanPos.y)) {
-											newPos = new Position(/*this.theMap.getPGhost().get(k)[1] / this.theMap.getTailleCase()*/BeliefState.listPGhostInit.get(k)[1] / BeliefState.tailleCase,/*this.theMap.getPGhost().get(k)[0] / this.theMap.getTailleCase()*/ BeliefState.listPGhostInit.get(k)[0] / BeliefState.tailleCase,'U');
-											BeliefState actualBeliefState = new BeliefState(state, false);
-											actualBeliefState.listPGhost.get(k).clear();
-											actualBeliefState.compteurPeur.set(k, 0);
-											actualBeliefState.listPGhost.get(k).add(/*newPos.toString(),*/ newPos);
-											actualBeliefState.score += Ghost.SCORE_FANTOME;
-											if(!hAlternativePos.contains(newPos.toString())) {
-												tempListAlternativeBeliefState.add(actualBeliefState);
-												hAlternativePos.add(newPos.toString());
+									for(Position newPos: caseAround) {
+										if((newPos.x == state.pacmanPos.x && newPos.y == state.pacmanPos.y) || (posG.x == state.pacmanPos.x && posG.y == state.pacmanPos.y && newPos.x == this.pacmanPos.x && newPos.y == this.pacmanPos.y)) {//soit le ghost se retrouve sur la case du Pacman, soit le ghost et le Pacman se sont croises
+											if(compteurPeur == 0) {//si le ghost n'etait pas dans un etat de peur alors Pacman est mort
+												if(stateRemoved == null)
+													stateRemoved = new BeliefState(state, true);
+											}
+											else {//si le ghost etait dans un etat de peur alors il a ete mange
+												newPos = new Position(BeliefState.listPGhostInit.get(k)[1] / BeliefState.tailleCase, BeliefState.listPGhostInit.get(k)[0] / BeliefState.tailleCase,'U');
+												BeliefState actualBeliefState = new BeliefState(state, false);
+												actualBeliefState.listPGhost.get(k).clear();
+												actualBeliefState.compteurPeur.set(k, 0);
+												actualBeliefState.listPGhost.get(k).add(newPos);
+												actualBeliefState.score += Ghost.SCORE_FANTOME;
+												if(!hAlternativePos.contains(newPos.toString())) {
+													tempListAlternativeBeliefState.add(actualBeliefState);
+													hAlternativePos.add(newPos.toString());
+												}
 											}
 										}
 										else {
-											newPosGhost.add(/*newPos.toString(),*/ newPos);
+											if(BeliefState.isVisible(newPos.x, newPos.y, state.pacmanPos.x, state.pacmanPos.y)) {
+												BeliefState actualBeliefState = new BeliefState(state, false);
+												actualBeliefState.listPGhost.get(k).clear();
+												actualBeliefState.listPGhost.get(k).add(newPos);
+												if(!hAlternativePos.contains(newPos.toString())) {
+													tempListAlternativeBeliefState.add(actualBeliefState);
+													hAlternativePos.add(newPos.toString());
+												}
+											}
+											else {
+												newPosGhost.add(newPos);
+											}
 										}
 									}
 									haveMoved = true;
 								} else if (!upAvailable) {
-									for(int[] newCase: caseAround) {
-										Position newPos = new Position(newCase[0], newCase[1], moveAround.get(m++));
-										if((newPos.x == state.pacmanPos.x && newPos.y == state.pacmanPos.y) || (posG.x == state.pacmanPos.x && posG.y == state.pacmanPos.y && newPos.x == this.pacmanPos.x && newPos.y == this.pacmanPos.y)) {
-											newPos = new Position(/*this.theMap.getPGhost().get(k)[1] / this.theMap.getTailleCase()*/ BeliefState.listPGhostInit.get(k)[1] / BeliefState.tailleCase,/*this.theMap.getPGhost().get(k)[0] / this.theMap.getTailleCase()*/ BeliefState.listPGhostInit.get(k)[0] / BeliefState.tailleCase,'U');
-											BeliefState actualBeliefState = new BeliefState(state, false);
-											actualBeliefState.listPGhost.get(k).clear();
-											actualBeliefState.compteurPeur.set(k, 0);
-											actualBeliefState.listPGhost.get(k).add(/*newPos.toString(),*/ newPos);
-											actualBeliefState.score += Ghost.SCORE_FANTOME;
-											if(!hAlternativePos.contains(newPos.toString())) {
-												tempListAlternativeBeliefState.add(actualBeliefState);
-												hAlternativePos.add(newPos.toString());
+									for(Position newPos: caseAround) {
+										if((newPos.x == state.pacmanPos.x && newPos.y == state.pacmanPos.y) || (posG.x == state.pacmanPos.x && posG.y == state.pacmanPos.y && newPos.x == this.pacmanPos.x && newPos.y == this.pacmanPos.y)) {//soit le ghost se retrouve sur la case du Pacman, soit le ghost et le Pacman se sont croises
+											if(compteurPeur == 0) {//si le ghost n'etait pas dans un etat de peur alors Pacman est mort
+												if(stateRemoved == null)
+													stateRemoved = new BeliefState(state, true);
+											}
+											else {//si le ghost etait dans un etat de peur alors il a ete mange
+												newPos = new Position(BeliefState.listPGhostInit.get(k)[1] / BeliefState.tailleCase, BeliefState.listPGhostInit.get(k)[0] / BeliefState.tailleCase,'U');
+												BeliefState actualBeliefState = new BeliefState(state, false);
+												actualBeliefState.listPGhost.get(k).clear();
+												actualBeliefState.compteurPeur.set(k, 0);
+												actualBeliefState.listPGhost.get(k).add(newPos);
+												actualBeliefState.score += Ghost.SCORE_FANTOME;
+												if(!hAlternativePos.contains(newPos.toString())) {
+													tempListAlternativeBeliefState.add(actualBeliefState);
+													hAlternativePos.add(newPos.toString());
+												}
 											}
 										}
 										else {
-											newPosGhost.add(/*newPos.toString(),*/ newPos);
+											if(BeliefState.isVisible(newPos.x, newPos.y, state.pacmanPos.x, state.pacmanPos.y)) {
+												BeliefState actualBeliefState = new BeliefState(state, false);
+												actualBeliefState.listPGhost.get(k).clear();
+												actualBeliefState.listPGhost.get(k).add(newPos);
+												if(!hAlternativePos.contains(newPos.toString())) {
+													tempListAlternativeBeliefState.add(actualBeliefState);
+													hAlternativePos.add(newPos.toString());
+												}
+											}
+											else {
+												newPosGhost.add(newPos);
+											}
 										}
 									}
 									haveMoved = true;
@@ -566,44 +587,75 @@ public class BeliefState implements Comparable{
 								if (leftAvailable || rightAvailable) {
 									if(upAvailable) {
 										caseAround.remove(0);
-										moveAround.remove(0);
 									}
-									for(int[] newCase: caseAround) {
-										Position newPos = new Position(newCase[0], newCase[1], moveAround.get(m++));
-										if((newPos.x == state.pacmanPos.x && newPos.y == state.pacmanPos.y) || (posG.x == state.pacmanPos.x && posG.y == state.pacmanPos.y && newPos.x == this.pacmanPos.x && newPos.y == this.pacmanPos.y)) {
-											newPos = new Position(/*this.theMap.getPGhost().get(k)[1] / this.theMap.getTailleCase()*/ BeliefState.listPGhostInit.get(k)[1] / BeliefState.tailleCase,/*this.theMap.getPGhost().get(k)[0] / this.theMap.getTailleCase()*/ BeliefState.listPGhostInit.get(k)[0] / BeliefState.tailleCase,'U');
-											BeliefState actualBeliefState = new BeliefState(state, false);
-											actualBeliefState.listPGhost.get(k).clear();
-											actualBeliefState.compteurPeur.set(k, 0);
-											actualBeliefState.listPGhost.get(k).add(/*newPos.toString(),*/ newPos);
-											actualBeliefState.score += Ghost.SCORE_FANTOME;
-											if(!hAlternativePos.contains(newPos.toString())) {
-												tempListAlternativeBeliefState.add(actualBeliefState);
-												hAlternativePos.add(newPos.toString());
+									for(Position newPos: caseAround) {
+										if((newPos.x == state.pacmanPos.x && newPos.y == state.pacmanPos.y) || (posG.x == state.pacmanPos.x && posG.y == state.pacmanPos.y && newPos.x == this.pacmanPos.x && newPos.y == this.pacmanPos.y)) {//soit le ghost se retrouve sur la case du Pacman, soit le ghost et le Pacman se sont croises
+											if(compteurPeur == 0) {//si le ghost n'etait pas dans un etat de peur alors Pacman est mort
+												if(stateRemoved == null)
+													stateRemoved = new BeliefState(state, true);
+											}
+											else {//si le ghost etait dans un etat de peur alors il a ete mange
+												newPos = new Position(BeliefState.listPGhostInit.get(k)[1] / BeliefState.tailleCase, BeliefState.listPGhostInit.get(k)[0] / BeliefState.tailleCase,'U');
+												BeliefState actualBeliefState = new BeliefState(state, false);
+												actualBeliefState.listPGhost.get(k).clear();
+												actualBeliefState.compteurPeur.set(k, 0);
+												actualBeliefState.listPGhost.get(k).add(newPos);
+												actualBeliefState.score += Ghost.SCORE_FANTOME;
+												if(!hAlternativePos.contains(newPos.toString())) {
+													tempListAlternativeBeliefState.add(actualBeliefState);
+													hAlternativePos.add(newPos.toString());
+												}
 											}
 										}
 										else {
-											newPosGhost.add(/*newPos.toString(),*/ newPos);
+											if(BeliefState.isVisible(newPos.x, newPos.y, state.pacmanPos.x, state.pacmanPos.y)) {
+												BeliefState actualBeliefState = new BeliefState(state, false);
+												actualBeliefState.listPGhost.get(k).clear();
+												actualBeliefState.listPGhost.get(k).add(newPos);
+												if(!hAlternativePos.contains(newPos.toString())) {
+													tempListAlternativeBeliefState.add(actualBeliefState);
+													hAlternativePos.add(newPos.toString());
+												}
+											}
+											else {
+												newPosGhost.add(newPos);
+											}
 										}
 									}
 									haveMoved = true;
 								} else if (!downAvailable) {
-									for(int[] newCase: caseAround) {
-										Position newPos = new Position(newCase[0], newCase[1], moveAround.get(m++));
-										if((newPos.x == state.pacmanPos.x && newPos.y == state.pacmanPos.y) || (posG.x == state.pacmanPos.x && posG.y == state.pacmanPos.y && newPos.x == this.pacmanPos.x && newPos.y == this.pacmanPos.y)) {
-											newPos = new Position(/*this.theMap.getPGhost().get(k)[1] / this.theMap.getTailleCase()*/ BeliefState.listPGhostInit.get(k)[1] / BeliefState.tailleCase,/*this.theMap.getPGhost().get(k)[0] / this.theMap.getTailleCase()*/ BeliefState.listPGhostInit.get(k)[0] / BeliefState.tailleCase,'U');
-											BeliefState actualBeliefState = new BeliefState(state, false);
-											actualBeliefState.listPGhost.get(k).clear();
-											actualBeliefState.compteurPeur.set(k, 0);
-											actualBeliefState.listPGhost.get(k).add(/*newPos.toString(),*/ newPos);
-											actualBeliefState.score += Ghost.SCORE_FANTOME;
-											if(!hAlternativePos.contains(newPos.toString())) {
-												tempListAlternativeBeliefState.add(actualBeliefState);
-												hAlternativePos.add(newPos.toString());
+									for(Position newPos: caseAround) {
+										if((newPos.x == state.pacmanPos.x && newPos.y == state.pacmanPos.y) || (posG.x == state.pacmanPos.x && posG.y == state.pacmanPos.y && newPos.x == this.pacmanPos.x && newPos.y == this.pacmanPos.y)) {//soit le ghost se retrouve sur la case du Pacman, soit le ghost et le Pacman se sont croises
+											if(compteurPeur == 0) {//si le ghost n'etait pas dans un etat de peur alors Pacman est mort
+												if(stateRemoved == null)
+													stateRemoved = new BeliefState(state, true);
+											}
+											else {//si le ghost etait dans un etat de peur alors il a ete mange
+												newPos = new Position(BeliefState.listPGhostInit.get(k)[1] / BeliefState.tailleCase, BeliefState.listPGhostInit.get(k)[0] / BeliefState.tailleCase,'U');
+												BeliefState actualBeliefState = new BeliefState(state, false);
+												actualBeliefState.listPGhost.get(k).clear();
+												actualBeliefState.compteurPeur.set(k, 0);
+												actualBeliefState.listPGhost.get(k).add(newPos);
+												actualBeliefState.score += Ghost.SCORE_FANTOME;
+												if(!hAlternativePos.contains(newPos.toString())) {
+													tempListAlternativeBeliefState.add(actualBeliefState);
+													hAlternativePos.add(newPos.toString());
+												}
 											}
 										}
 										else {
-											newPosGhost.add(/*newPos.toString(),*/ newPos);
+											if(BeliefState.isVisible(newPos.x, newPos.y, state.pacmanPos.x, state.pacmanPos.y)) {
+												BeliefState actualBeliefState = new BeliefState(state, false);
+												actualBeliefState.listPGhost.get(k).clear();
+												actualBeliefState.listPGhost.get(k).add(newPos);
+												if(!hAlternativePos.contains(newPos.toString())) {
+													tempListAlternativeBeliefState.add(actualBeliefState);
+													hAlternativePos.add(newPos.toString());
+												}
+											}
+											else {
+												newPosGhost.add(newPos);
+											}
 										}
 									}
 									haveMoved = true;
@@ -613,45 +665,76 @@ public class BeliefState implements Comparable{
 								if (upAvailable || downAvailable) {
 									if(rightAvailable) {
 										caseAround.remove((upAvailable?1:0)+(downAvailable?1:0)+(leftAvailable?1:0));
-										moveAround.remove((upAvailable?1:0)+(downAvailable?1:0)+(leftAvailable?1:0));
 
 									}
-									for(int[] newCase: caseAround) {
-										Position newPos = new Position(newCase[0], newCase[1], moveAround.get(m++));
-										if((newPos.x == state.pacmanPos.x && newPos.y == state.pacmanPos.y) || (posG.x == state.pacmanPos.x && posG.y == state.pacmanPos.y && newPos.x == this.pacmanPos.x && newPos.y == this.pacmanPos.y)) {
-											newPos = new Position(/*this.theMap.getPGhost().get(k)[1] / this.theMap.getTailleCase()*/BeliefState.listPGhostInit.get(k)[1] / BeliefState.tailleCase,/*this.theMap.getPGhost().get(k)[0] / this.theMap.getTailleCase()*/ BeliefState.listPGhostInit.get(k)[0] / BeliefState.tailleCase,'U');
-											BeliefState actualBeliefState = new BeliefState(state, false);
-											actualBeliefState.listPGhost.get(k).clear();
-											actualBeliefState.compteurPeur.set(k, 0);
-											actualBeliefState.listPGhost.get(k).add(/*newPos.toString(),*/ newPos);
-											actualBeliefState.score += Ghost.SCORE_FANTOME;
-											if(!hAlternativePos.contains(newPos.toString())) {
-												tempListAlternativeBeliefState.add(actualBeliefState);
-												hAlternativePos.add(newPos.toString());
+									for(Position newPos: caseAround) {
+										if((newPos.x == state.pacmanPos.x && newPos.y == state.pacmanPos.y) || (posG.x == state.pacmanPos.x && posG.y == state.pacmanPos.y && newPos.x == this.pacmanPos.x && newPos.y == this.pacmanPos.y)) {//soit le ghost se retrouve sur la case du Pacman, soit le ghost et le Pacman se sont croises
+											if(compteurPeur == 0) {//si le ghost n'etait pas dans un etat de peur alors Pacman est mort
+												if(stateRemoved == null)
+													stateRemoved = new BeliefState(state, true);
+											}
+											else {//si le ghost etait dans un etat de peur alors il a ete mange
+												newPos = new Position(BeliefState.listPGhostInit.get(k)[1] / BeliefState.tailleCase, BeliefState.listPGhostInit.get(k)[0] / BeliefState.tailleCase,'U');
+												BeliefState actualBeliefState = new BeliefState(state, false);
+												actualBeliefState.listPGhost.get(k).clear();
+												actualBeliefState.compteurPeur.set(k, 0);
+												actualBeliefState.listPGhost.get(k).add(newPos);
+												actualBeliefState.score += Ghost.SCORE_FANTOME;
+												if(!hAlternativePos.contains(newPos.toString())) {
+													tempListAlternativeBeliefState.add(actualBeliefState);
+													hAlternativePos.add(newPos.toString());
+												}
 											}
 										}
 										else {
-											newPosGhost.add(/*newPos.toString(),*/ newPos);
+											if(BeliefState.isVisible(newPos.x, newPos.y, state.pacmanPos.x, state.pacmanPos.y)) {
+												BeliefState actualBeliefState = new BeliefState(state, false);
+												actualBeliefState.listPGhost.get(k).clear();
+												actualBeliefState.listPGhost.get(k).add(newPos);
+												if(!hAlternativePos.contains(newPos.toString())) {
+													tempListAlternativeBeliefState.add(actualBeliefState);
+													hAlternativePos.add(newPos.toString());
+												}
+											}
+											else {
+												newPosGhost.add(newPos);
+											}
 										}
 									}
 									haveMoved = true;
 								} else if (!leftAvailable) {
-									for(int[] newCase: caseAround) {
-										Position newPos = new Position(newCase[0], newCase[1], moveAround.get(m++));
-										if((newPos.x == state.pacmanPos.x && newPos.y == state.pacmanPos.y) || (posG.x == state.pacmanPos.x && posG.y == state.pacmanPos.y && newPos.x == this.pacmanPos.x && newPos.y == this.pacmanPos.y)) {
-											newPos = new Position(/*this.theMap.getPGhost().get(k)[1] / this.theMap.getTailleCase()*/BeliefState.listPGhostInit.get(k)[1] / BeliefState.tailleCase,/*this.theMap.getPGhost().get(k)[0] / this.theMap.getTailleCase()*/ BeliefState.listPGhostInit.get(k)[0] / BeliefState.tailleCase,'U');
-											BeliefState actualBeliefState = new BeliefState(state, false);
-											actualBeliefState.listPGhost.get(k).clear();
-											actualBeliefState.compteurPeur.set(k, 0);
-											actualBeliefState.listPGhost.get(k).add(/*newPos.toString(),*/ newPos);
-											actualBeliefState.score += Ghost.SCORE_FANTOME;
-											if(!hAlternativePos.contains(newPos.toString())) {
-												tempListAlternativeBeliefState.add(actualBeliefState);
-												hAlternativePos.add(newPos.toString());
+									for(Position newPos: caseAround) {
+										if((newPos.x == state.pacmanPos.x && newPos.y == state.pacmanPos.y) || (posG.x == state.pacmanPos.x && posG.y == state.pacmanPos.y && newPos.x == this.pacmanPos.x && newPos.y == this.pacmanPos.y)) {//soit le ghost se retrouve sur la case du Pacman, soit le ghost et le Pacman se sont croises
+											if(compteurPeur == 0) {//si le ghost n'etait pas dans un etat de peur alors Pacman est mort
+												if(stateRemoved == null)
+													stateRemoved = new BeliefState(state, true);
+											}
+											else {//si le ghost etait dans un etat de peur alors il a ete mange
+												newPos = new Position(BeliefState.listPGhostInit.get(k)[1] / BeliefState.tailleCase, BeliefState.listPGhostInit.get(k)[0] / BeliefState.tailleCase,'U');
+												BeliefState actualBeliefState = new BeliefState(state, false);
+												actualBeliefState.listPGhost.get(k).clear();
+												actualBeliefState.compteurPeur.set(k, 0);
+												actualBeliefState.listPGhost.get(k).add(newPos);
+												actualBeliefState.score += Ghost.SCORE_FANTOME;
+												if(!hAlternativePos.contains(newPos.toString())) {
+													tempListAlternativeBeliefState.add(actualBeliefState);
+													hAlternativePos.add(newPos.toString());
+												}
 											}
 										}
 										else {
-											newPosGhost.add(/*newPos.toString(),*/ newPos);
+											if(BeliefState.isVisible(newPos.x, newPos.y, state.pacmanPos.x, state.pacmanPos.y)) {
+												BeliefState actualBeliefState = new BeliefState(state, false);
+												actualBeliefState.listPGhost.get(k).clear();
+												actualBeliefState.listPGhost.get(k).add(newPos);
+												if(!hAlternativePos.contains(newPos.toString())) {
+													tempListAlternativeBeliefState.add(actualBeliefState);
+													hAlternativePos.add(newPos.toString());
+												}
+											}
+											else {
+												newPosGhost.add(newPos);
+											}
 										}
 									}
 									haveMoved = true;
@@ -661,44 +744,75 @@ public class BeliefState implements Comparable{
 								if (upAvailable || downAvailable) {
 									if(leftAvailable) {
 										caseAround.remove((upAvailable?1:0)+(downAvailable?1:0));
-										moveAround.remove((upAvailable?1:0)+(downAvailable?1:0));
 									}
-									for(int[] newCase: caseAround) {
-										Position newPos = new Position(newCase[0], newCase[1], moveAround.get(m++));
-										if((newPos.x == state.pacmanPos.x && newPos.y == state.pacmanPos.y) || (posG.x == state.pacmanPos.x && posG.y == state.pacmanPos.y && newPos.x == this.pacmanPos.x && newPos.y == this.pacmanPos.y)) {
-											newPos = new Position(/*this.theMap.getPGhost().get(k)[1] / this.theMap.getTailleCase()*/ BeliefState.listPGhostInit.get(k)[1] / BeliefState.tailleCase,/*this.theMap.getPGhost().get(k)[0] / this.theMap.getTailleCase()*/BeliefState.listPGhostInit.get(k)[0] / BeliefState.tailleCase,'U');
-											BeliefState actualBeliefState = new BeliefState(state, false);
-											actualBeliefState.listPGhost.get(k).clear();
-											actualBeliefState.compteurPeur.set(k, 0);
-											actualBeliefState.listPGhost.get(k).add(/*newPos.toString(),*/ newPos);
-											actualBeliefState.score += Ghost.SCORE_FANTOME;
-											if(!hAlternativePos.contains(newPos.toString())) {
-												tempListAlternativeBeliefState.add(actualBeliefState);
-												hAlternativePos.add(newPos.toString());
+									for(Position newPos: caseAround) {
+										if((newPos.x == state.pacmanPos.x && newPos.y == state.pacmanPos.y) || (posG.x == state.pacmanPos.x && posG.y == state.pacmanPos.y && newPos.x == this.pacmanPos.x && newPos.y == this.pacmanPos.y)) {//soit le ghost se retrouve sur la case du Pacman, soit le ghost et le Pacman se sont croises
+											if(compteurPeur == 0) {//si le ghost n'etait pas dans un etat de peur alors Pacman est mort
+												if(stateRemoved == null)
+													stateRemoved = new BeliefState(state, true);
+											}
+											else {//si le ghost etait dans un etat de peur alors il a ete mange
+												newPos = new Position(BeliefState.listPGhostInit.get(k)[1] / BeliefState.tailleCase, BeliefState.listPGhostInit.get(k)[0] / BeliefState.tailleCase,'U');
+												BeliefState actualBeliefState = new BeliefState(state, false);
+												actualBeliefState.listPGhost.get(k).clear();
+												actualBeliefState.compteurPeur.set(k, 0);
+												actualBeliefState.listPGhost.get(k).add(newPos);
+												actualBeliefState.score += Ghost.SCORE_FANTOME;
+												if(!hAlternativePos.contains(newPos.toString())) {
+													tempListAlternativeBeliefState.add(actualBeliefState);
+													hAlternativePos.add(newPos.toString());
+												}
 											}
 										}
 										else {
-											newPosGhost.add(/*newPos.toString(),*/ newPos);
+											if(BeliefState.isVisible(newPos.x, newPos.y, state.pacmanPos.x, state.pacmanPos.y)) {
+												BeliefState actualBeliefState = new BeliefState(state, false);
+												actualBeliefState.listPGhost.get(k).clear();
+												actualBeliefState.listPGhost.get(k).add(newPos);
+												if(!hAlternativePos.contains(newPos.toString())) {
+													tempListAlternativeBeliefState.add(actualBeliefState);
+													hAlternativePos.add(newPos.toString());
+												}
+											}
+											else {
+												newPosGhost.add(newPos);
+											}
 										}
 									}
 									haveMoved = true;
 								} else if (!rightAvailable) {
-									for(int[] newCase: caseAround) {
-										Position newPos = new Position(newCase[0], newCase[1], moveAround.get(m++));
-										if((newPos.x == state.pacmanPos.x && newPos.y == state.pacmanPos.y) || (posG.x == state.pacmanPos.x && posG.y == state.pacmanPos.y && newPos.x == this.pacmanPos.x && newPos.y == this.pacmanPos.y)) {
-											newPos = new Position(/*this.theMap.getPGhost().get(k)[1] / this.theMap.getTailleCase()*/BeliefState.listPGhostInit.get(k)[1] / BeliefState.tailleCase,/*this.theMap.getPGhost().get(k)[0] / this.theMap.getTailleCase()*/BeliefState.listPGhostInit.get(k)[0] / BeliefState.tailleCase,'U');
-											BeliefState actualBeliefState = new BeliefState(state, false);
-											actualBeliefState.listPGhost.get(k).clear();
-											actualBeliefState.compteurPeur.set(k, 0);
-											actualBeliefState.listPGhost.get(k).add(/*newPos.toString(),*/ newPos);
-											actualBeliefState.score += Ghost.SCORE_FANTOME;
-											if(!hAlternativePos.contains(newPos.toString())) {
-												tempListAlternativeBeliefState.add(actualBeliefState);
-												hAlternativePos.add(newPos.toString());
+									for(Position newPos: caseAround) {
+										if((newPos.x == state.pacmanPos.x && newPos.y == state.pacmanPos.y) || (posG.x == state.pacmanPos.x && posG.y == state.pacmanPos.y && newPos.x == this.pacmanPos.x && newPos.y == this.pacmanPos.y)) {//soit le ghost se retrouve sur la case du Pacman, soit le ghost et le Pacman se sont croises
+											if(compteurPeur == 0) {//si le ghost n'etait pas dans un etat de peur alors Pacman est mort
+												if(stateRemoved == null)
+													stateRemoved = new BeliefState(state, true);
+											}
+											else {//si le ghost etait dans un etat de peur alors il a ete mange
+												newPos = new Position(BeliefState.listPGhostInit.get(k)[1] / BeliefState.tailleCase, BeliefState.listPGhostInit.get(k)[0] / BeliefState.tailleCase,'U');
+												BeliefState actualBeliefState = new BeliefState(state, false);
+												actualBeliefState.listPGhost.get(k).clear();
+												actualBeliefState.compteurPeur.set(k, 0);
+												actualBeliefState.listPGhost.get(k).add(newPos);
+												actualBeliefState.score += Ghost.SCORE_FANTOME;
+												if(!hAlternativePos.contains(newPos.toString())) {
+													tempListAlternativeBeliefState.add(actualBeliefState);
+													hAlternativePos.add(newPos.toString());
+												}
 											}
 										}
 										else {
-											newPosGhost.add(/*newPos.toString(),*/ newPos);
+											if(BeliefState.isVisible(newPos.x, newPos.y, state.pacmanPos.x, state.pacmanPos.y)) {
+												BeliefState actualBeliefState = new BeliefState(state, false);
+												actualBeliefState.listPGhost.get(k).clear();
+												actualBeliefState.listPGhost.get(k).add(newPos);
+												if(!hAlternativePos.contains(newPos.toString())) {
+													tempListAlternativeBeliefState.add(actualBeliefState);
+													hAlternativePos.add(newPos.toString());
+												}
+											}
+											else {
+												newPosGhost.add(newPos);
+											}
 										}
 									}
 									haveMoved = true;
@@ -714,13 +828,13 @@ public class BeliefState implements Comparable{
 							case 'L': newPos.y--; break;
 							case 'R': newPos.y++; break;
 							}
-							if(compteurPeur > 0) {
-								if((newPos.x == state.pacmanPos.x && newPos.y == state.pacmanPos.y) || (posG.x == state.pacmanPos.x && posG.y == state.pacmanPos.y && newPos.x == this.pacmanPos.x && newPos.y == this.pacmanPos.y)) {
-									newPos = new Position(/*this.theMap.getPGhost().get(k)[1] / this.theMap.getTailleCase()*/BeliefState.listPGhostInit.get(k)[1] / BeliefState.tailleCase,/*this.theMap.getPGhost().get(k)[0] / this.theMap.getTailleCase()*/ BeliefState.listPGhostInit.get(k)[0] / BeliefState.tailleCase,'U');
+							if(compteurPeur > 0) {//si le ghost est en etat de peur
+								if((newPos.x == state.pacmanPos.x && newPos.y == state.pacmanPos.y) || (posG.x == state.pacmanPos.x && posG.y == state.pacmanPos.y && newPos.x == this.pacmanPos.x && newPos.y == this.pacmanPos.y)) {//si il se trouve sur la meme case que Pacman ou si ils se sont croises
+									newPos = new Position(BeliefState.listPGhostInit.get(k)[1] / BeliefState.tailleCase, BeliefState.listPGhostInit.get(k)[0] / BeliefState.tailleCase,'U');//le ghost a ete mange
 									BeliefState actualBeliefState = new BeliefState(state, false);
 									actualBeliefState.listPGhost.get(k).clear();
 									actualBeliefState.compteurPeur.set(k, 0);
-									actualBeliefState.listPGhost.get(k).add(/*newPos.toString(),*/ newPos);
+									actualBeliefState.listPGhost.get(k).add(newPos);
 									actualBeliefState.score += Ghost.SCORE_FANTOME;
 									if(!hAlternativePos.contains(newPos.toString())) {
 										tempListAlternativeBeliefState.add(actualBeliefState);
@@ -728,11 +842,39 @@ public class BeliefState implements Comparable{
 									}
 								}
 								else {
-									newPosGhost.add(/*newPos.toString(),*/ newPos);
+									if(BeliefState.isVisible(newPos.x, newPos.y, state.pacmanPos.x, state.pacmanPos.y)) {
+										BeliefState actualBeliefState = new BeliefState(state, false);
+										actualBeliefState.listPGhost.get(k).clear();
+										actualBeliefState.listPGhost.get(k).add(newPos);
+										if(!hAlternativePos.contains(newPos.toString())) {
+											tempListAlternativeBeliefState.add(actualBeliefState);
+											hAlternativePos.add(newPos.toString());
+										}
+									}
+									else {
+										newPosGhost.add(newPos);
+									}
 								}
 							}
 							else {
-								newPosGhost.add(/*newPos.toString(),*/ newPos);
+								if((newPos.x == state.pacmanPos.x && newPos.y == state.pacmanPos.y) || (posG.x == state.pacmanPos.x && posG.y == state.pacmanPos.y && newPos.x == this.pacmanPos.x && newPos.y == this.pacmanPos.y)) {//soit le ghost se retrouve sur la case du Pacman, soit le ghost et le Pacman se sont croises
+									if(stateRemoved == null)
+										stateRemoved = new BeliefState(state, true);
+								}
+								else {
+									if(BeliefState.isVisible(newPos.x, newPos.y, state.pacmanPos.x, state.pacmanPos.y)) {
+										BeliefState actualBeliefState = new BeliefState(state, false);
+										actualBeliefState.listPGhost.get(k).clear();
+										actualBeliefState.listPGhost.get(k).add(newPos);
+										if(!hAlternativePos.contains(newPos.toString())) {
+											tempListAlternativeBeliefState.add(actualBeliefState);
+											hAlternativePos.add(newPos.toString());
+										}
+									}
+									else {
+										newPosGhost.add(newPos);
+									}
+								}
 							}
 						}
 					}
@@ -823,8 +965,10 @@ public class BeliefState implements Comparable{
 			if(!state.listPGhost.get(gId).contains(posG)) {
 				if(listBeliefState.size() == 1)
 					System.out.println("problem");
-				listBeliefState.remove(i);
-				i--;
+				else {
+					listBeliefState.remove(i);
+					i--;
+				}
 			}
 		}
 	}
@@ -860,6 +1004,7 @@ public class BeliefState implements Comparable{
 			nextBeliefState.map[nextBeliefState.pacmanPos.x][nextBeliefState.pacmanPos.y] = 'B';
 		else
 			nextBeliefState.map[nextBeliefState.pacmanPos.x][nextBeliefState.pacmanPos.y] = 'P';
+		nextBeliefState.pacmanOldPos = this.pacmanPos.clone();
 		return nextBeliefState;
 	}
 
@@ -871,6 +1016,7 @@ public class BeliefState implements Comparable{
 	 * @return true if Pacman is dead after performing the move
 	 */
 	public boolean move(int i, int j, char move) {
+		this.pacmanOldPos = this.pacmanPos.clone();
 		if(this.map[this.pacmanPos.x + i][this.pacmanPos.y + j] != '#') {
 			if(this.map[this.pacmanPos.x][this.pacmanPos.y] == 'B')
 				this.map[this.pacmanPos.x][this.pacmanPos.y] = 'F';
@@ -895,16 +1041,17 @@ public class BeliefState implements Comparable{
 				this.map[this.pacmanPos.x][this.pacmanPos.y] = 'B';
 			else
 				this.map[this.pacmanPos.x][this.pacmanPos.y] = 'P';
-			for(/*HashMap<String, Position>*/TreeSet<Position> treeSet: this.listPGhost) {
+			for(TreeSet<Position> treeSet: this.listPGhost) {
 				if(this.compteurPeur.get(l++) == 0 && treeSet.size() == 1) {
 					Position pos = treeSet.first();
-					if(pos.x == this.pacmanPos.x && pos.y == this.pacmanPos.y)
+					if(pos.x == this.pacmanPos.x && pos.y == this.pacmanPos.y) {
 						return true;
+					}
 				}
 			}
 		}
 		else {
-			this.pacmanPos.dir = 'N';
+			this.pacmanPos.dir = move;
 		}
 		return false;
 	}
@@ -927,6 +1074,7 @@ public class BeliefState implements Comparable{
 			this.map[this.pacmanPos.x][this.pacmanPos.y] = 'B';
 		else
 			this.map[this.pacmanPos.x][this.pacmanPos.y] = 'P';
+		this.pacmanOldPos = this.pacmanPos.clone();
 	}
 
 	/**
@@ -937,51 +1085,49 @@ public class BeliefState implements Comparable{
 	 * @param dir direction followed by the ghost ('U', 'D', 'L', 'R')
 	 * @return true if the move performed by the ghost kill Pacman
 	 */
-	public boolean moveGhost(int i, int j, int k, char dir) {
+	public int moveGhost(int i, int j, int k, char dir) {
 		Position posGhost = this.listPGhost.get(k).first();
 
 		int compteurPeur = this.compteurPeur.get(k);
-		if(compteurPeur > 0) {
-			Position posPcopy = this.pacmanPos.clone();
-			switch(posPcopy.dir) {
-			case 'U': posPcopy.x++; break;
-			case 'D': posPcopy.x--; break;
-			case 'L': posPcopy.y++; break;
-			case 'R': posPcopy.y--; break;
-			}
-			if(posGhost.x == this.pacmanPos.x && posGhost.y == this.pacmanPos.y && posPcopy.x == posGhost.x + i && posPcopy.y == posGhost.y + j) {
-				/*Integer*/int[] initPosG = /*this.theMap.getPGhost().get(k)*/BeliefState.listPGhostInit.get(k);
-				this.moveGhostTo(initPosG[1] / /*this.theMap.getTailleCase()*/ BeliefState.tailleCase, initPosG[0] / /*this.theMap.getTailleCase()*/BeliefState.tailleCase, k, 'U'/*, true*/);
-				this.score += Ghost.SCORE_FANTOME;
-				return false;
-			}
-			else
-				this.compteurPeur.set(k, compteurPeur - 2);
+		Position posPcopy = this.pacmanPos.clone();
+		switch(posPcopy.dir) {
+		case 'U': posPcopy.x++; break;
+		case 'D': posPcopy.x--; break;
+		case 'L': posPcopy.y++; break;
+		case 'R': posPcopy.y--; break;
 		}
-		this.listPGhost.get(k).clear();
-		posGhost.x += i;
-		posGhost.y += j;
-		posGhost.dir = dir;
-		this.listPGhost.get(k).add(/*posGhost.toString(),*/ posGhost);
-		if(posGhost.x == this.pacmanPos.x && posGhost.y == this.pacmanPos.y) {
-			if(this.compteurPeur.get(k) == 0) {
-				this.life--;
-				this.moveTo(/*this.theMap.getPMY()*/ BeliefState.pacmanYInit / /*this.theMap.getTailleCase()*/ BeliefState.tailleCase,/*this.theMap.getPMX()*/ BeliefState.pacmanXInit / /*this.theMap.getTailleCase()*/ BeliefState.tailleCase, 'U');
-				for(int l = 0; l < /*this.theMap.getPGhost().size()*/ BeliefState.listPGhostInit.size(); l++) {
-					/*Integer*/int[] initPosG = /*this.theMap.getPGhost().get(l)*/ BeliefState.listPGhostInit.get(l);
-					this.moveGhostTo(initPosG[1] / /*this.theMap.getTailleCase()*/ BeliefState.tailleCase, initPosG[0] / /*this.theMap.getTailleCase()*/BeliefState.tailleCase, l, 'U'/*, false*/);
+		if(compteurPeur > 0) {//si le ghost est en etat de peur
+			if((posGhost.x + i == this.pacmanPos.x && posGhost.y + j == this.pacmanPos.y) || (posGhost.x == this.pacmanPos.x && posGhost.y == this.pacmanPos.y && posPcopy.x == posGhost.x + i && posPcopy.y == posGhost.y + j)) {//si le ghost et le Pacman se sont croise ou que le ghost va sur la case du Pacman
+				int[] initPosG = BeliefState.listPGhostInit.get(k);//le ghost est mange
+				this.moveGhostTo(initPosG[1] /  BeliefState.tailleCase, initPosG[0] / BeliefState.tailleCase, k, 'U');
+				this.score += Ghost.SCORE_FANTOME;
+				return -1;
+			}			
+			this.compteurPeur.set(k, compteurPeur - 2);
+			this.listPGhost.get(k).clear();
+			posGhost.x += i;
+			posGhost.y += j;
+			posGhost.dir = dir;
+			this.listPGhost.get(k).add(posGhost);
+			return 0;
+		}
+		else {//si le ghost n'est pas en etat de peur
+			if((posGhost.x + i == this.pacmanPos.x && posGhost.y + j == this.pacmanPos.y) || (posGhost.x == this.pacmanPos.x && posGhost.y == this.pacmanPos.y && posPcopy.x == posGhost.x + i && posPcopy.y == posGhost.y + j)) {//si le ghost et le Pacman se sont croise ou que le ghost va sur la case du Pacman
+				this.life--;//alors Pacman meurt
+				this.moveTo(BeliefState.pacmanYInit / BeliefState.tailleCase, BeliefState.pacmanXInit / BeliefState.tailleCase, 'U');
+				for(int l = 0; l < BeliefState.listPGhostInit.size(); l++) {
+					int[] initPosG = BeliefState.listPGhostInit.get(l);
+					this.moveGhostTo(initPosG[1] / BeliefState.tailleCase, initPosG[0] / BeliefState.tailleCase, l, 'U');
 				}
-				return true;
+				return 1;
 			}
-			else {
-				/*Integer*/int[] initPosG = /*this.theMap.getPGhost().get(k)*/BeliefState.listPGhostInit.get(k);
-				this.moveGhostTo(initPosG[1] / /*this.theMap.getTailleCase()*/ BeliefState.tailleCase, initPosG[0] / /*this.theMap.getTailleCase()*/ BeliefState.tailleCase, k, 'U'/*, false*/);
-				this.score += Ghost.SCORE_FANTOME;
-				return false;
-			}
+			this.listPGhost.get(k).clear();
+			posGhost.x += i;
+			posGhost.y += j;
+			posGhost.dir = dir;
+			this.listPGhost.get(k).add(posGhost);
+			return 0;
 		}
-		else
-			return false;
 	}
 
 	/**
@@ -1019,7 +1165,7 @@ public class BeliefState implements Comparable{
 			}
 			s += "\n";
 		}
-		return s;
+		return s + "distanceMinToGum= " + this.distanceMinToGum() + "\n";
 	}
 	
 	/*private static HashSet<String> visible;*/
@@ -1129,6 +1275,10 @@ public class BeliefState implements Comparable{
 		return this.pacmanPos;
 	}
 	
+	public Position getPacmanOldPosition() {
+		return this.pacmanOldPos;
+	}
+	
 	public TreeSet<Position> getGhostPositions(int i){
 		return this.listPGhost.get(i);
 	}
@@ -1143,5 +1293,64 @@ public class BeliefState implements Comparable{
 			return BeliefState.visible.contains(Math.min(row1, row2)+","+column1+";"+Math.max(row1, row2)+","+column2);
 		}
 		return false;
+	}
+	
+	public int distanceMinToGum() {
+		LinkedList<int[]> queue = new LinkedList<int[]>();
+		HashSet<String> visited = new HashSet<String>();
+		int[] posP = new int[3];
+		posP[0] = this.pacmanPos.x;
+		posP[1] = this.pacmanPos.y;
+		posP[2] = 0;
+		queue.add(posP);
+		while(!queue.isEmpty()) {
+			int[] next = queue.pollFirst();
+			visited.add(next[0] + "," + next[1]);
+			if(next[0] > 0) {
+				if(!visited.contains((next[0] - 1) + "," + next[1])) {
+					char content = this.map[next[0] - 1][next[1]];
+					switch(content) {
+					case '.':
+					case '*': return next[2] + 1;
+					case '#': break;
+					default: int[] neighbor = {next[0] - 1, next[1], next[2] + 1}; queue.add(neighbor);
+					}
+				}
+			}
+			if(next[0] < BeliefState.taille - 1) {
+				if(!visited.contains((next[0] + 1) + "," + next[1])) {
+					char content = this.map[next[0] + 1][next[1]];
+					switch(content) {
+					case '.':
+					case '*': return next[2] + 1;
+					case '#': break;
+					default: int[] neighbor = {next[0] + 1, next[1], next[2] + 1}; queue.add(neighbor);
+					}
+				}
+			}
+			if(next[1] > 0) {
+				if(!visited.contains(next[0] + "," + (next[1] - 1))) {
+					char content = this.map[next[0]][next[1] - 1];
+					switch(content) {
+					case '.':
+					case '*': return next[2] + 1;
+					case '#': break;
+					default: int[] neighbor = {next[0], next[1] - 1, next[2] + 1}; queue.add(neighbor);
+					}
+				}
+			}
+			if(next[1] < BeliefState.taille - 1) {
+				if(!visited.contains(next[0] + "," + (next[1] + 1))) {
+					char content = this.map[next[0]][next[1] + 1];
+					switch(content) {
+					case '.':
+					case '*': return next[2] + 1;
+					case '#': break;
+					default: int[] neighbor = {next[0], next[1] + 1, next[2] + 1}; queue.add(neighbor);
+					}
+				}
+			}
+		}
+		return Integer.MAX_VALUE;
 	}
 }

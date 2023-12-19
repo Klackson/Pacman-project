@@ -153,7 +153,7 @@ public class Pacman extends Entite {
 		
 		boolean toInit = false;
 		
-		if(this.getX() % this.map.getTailleCase() == 0 && this.getY() % this.map.getTailleCase() == 0 && (count % (this.map.getTailleCase() / Pacman.SPEED_PACMAN) == 0)) {
+		if(this.getX() % this.map.getTailleCase() == 0 && this.getY() % this.map.getTailleCase() == 0 && (count % (this.map.getTailleCase() / Pacman.SPEED_PACMAN) == 0)) {//si Pacman commence un mouvement
 			this.isMoving = this.testMove(toward);
 			ArrayList<BeliefState> visibleBeliefState = this.map.getVisibleBeliefState(), newVisibleBeliefState = new ArrayList<BeliefState>();
 			switch(toward){
@@ -165,35 +165,22 @@ public class Pacman extends Entite {
 			this.map.setVisibleBeliefState(newVisibleBeliefState);
 		}
 		count++;
-		if (this.isMoving && this.testMove(toward)) {
-			int[] crossMap = this.crossMap(toward);
+		if(this.isMoving) {
+			this.previousMove = toward;
+			int[] crossMap = this.crossMap(this.previousMove);
 			dx = crossMap[0];
 			dy = crossMap[1];
 
-			crossMap = this.checkColision(toward, dx, dy);
+			crossMap = this.checkColision(this.previousMove, dx, dy);
 			dx = crossMap[0];
 			dy = crossMap[1];
 
-			this.deplaceOuverture(toward);
+			this.deplaceOuverture(this.previousMove);
 			this.animateMouth();
 			this.move(dx, dy);//move the pacman
-			this.previousMove = toward;
-		} else {
-			if(this.isMoving) {
-				int[] crossMap = this.crossMap(this.previousMove);
-				dx = crossMap[0];
-				dy = crossMap[1];
 
-				crossMap = this.checkColision(this.previousMove, dx, dy);
-				dx = crossMap[0];
-				dy = crossMap[1];
-
-				this.deplaceOuverture(this.previousMove);
-				this.animateMouth();
-				this.move(dx, dy);//move the pacman
-			}
 		}
-			
+					
 		this.invariant();
 		return toInit;
 	}
@@ -206,43 +193,41 @@ public class Pacman extends Entite {
 	private boolean testMove (String toward) {
 		boolean haveMoved = false;
 		Figure[][] map = this.map.getMap();
+		
+		int[] colLign = this.getColLign();
+		int colonne = colLign[0];
+		int ligne = colLign[1];
 
-		if(this.getX() % this.map.getTailleCase() == 0 && this.getY() % this.map.getTailleCase() == 0) {
-			int[] colLign = this.getColLign();
-			int colonne = colLign[0];
-			int ligne = colLign[1];
-
+		
+		switch (toward) {
+		case PacManLauncher.UP :
 			Figure fup = map[ligne-1][colonne];
-			Figure fdown = map[ligne+1][colonne];
-			Figure fleft = map[ligne][colonne-1];
-			Figure fright = map[ligne][colonne+1];
-
-			switch (toward) {
-			case PacManLauncher.UP :
-				if (fup.getClass().getName().compareTo("view.Wall") != 0) {
-					haveMoved = true;
-				} else {
-				}
-				break;
-			case PacManLauncher.DOWN :
-				if (fdown.getClass().getName().compareTo("view.Wall") != 0) {
-					haveMoved = true;
-				} else {
-				}
-				break;
-			case PacManLauncher.LEFT :
-				if (fleft.getClass().getName().compareTo("view.Wall") != 0) {
-					haveMoved = true;
-				} else {
-				}
-				break;
-			case PacManLauncher.RIGHT :
-				if (fright.getClass().getName().compareTo("view.Wall") != 0) {
-					haveMoved = true;
-				} else {
-				}
-				break;
+			if (fup.getClass().getName().compareTo("view.Wall") != 0) {
+				haveMoved = true;
+			} else {
 			}
+			break;
+		case PacManLauncher.DOWN :
+			Figure fdown = map[ligne+1][colonne];
+			if (fdown.getClass().getName().compareTo("view.Wall") != 0) {
+				haveMoved = true;
+			} else {
+			}
+			break;
+		case PacManLauncher.LEFT :
+			Figure fleft = map[ligne][colonne-1];
+			if (fleft.getClass().getName().compareTo("view.Wall") != 0) {
+				haveMoved = true;
+			} else {
+			}
+			break;
+		case PacManLauncher.RIGHT :
+			Figure fright = map[ligne][colonne+1];
+			if (fright.getClass().getName().compareTo("view.Wall") != 0) {
+				haveMoved = true;
+			} else {
+			}
+			break;
 		}
 
 		return haveMoved;

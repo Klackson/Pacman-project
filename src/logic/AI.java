@@ -112,23 +112,22 @@ public class AI{
 	static final int maxdepth = 4;
 	static final String aggregate_method = "mean";
 	static final float death_penatly = 1000;
-
-	static final float turnback_penalty = 98;
-	// Intentionally right under a hundred to make it still worthwile turning back to eat a ghost
+	static final float turnback_penalty = 150;
 	static final float max_expand = 5;
+	static final int gom_distance_weight = 10;
 
 
 	static int number_of_moves = 0;
 
-	public static float heuristic (BeliefState bstate) {
+	public static float heuristic (BeliefState bstate, int original_nbgoms) {
 		//if (bstate.getLife()==0) return 0;
 		// Very  primitive heuristic, we only consider current score and wether pacman is alive or dead
 		float hscore = 0;
 		hscore+= bstate.getScore();
-		hscore-= (float) bstate.getNbrOfGommes();
-		//hscore+= bstate.getLife() * value_per_life; No point in that as long as we only have a single life
+		//hscore-= (float) bstate.getNbrOfGommes();
+
 		if (bstate.getLife()==0) hscore -= death_penatly;
-		hscore -= 10 * nearest_gom_distance(bstate);
+		hscore -= gom_distance_weight * nearest_gom_distance(bstate, original_nbgoms);
 
 		return hscore;
 	}
@@ -170,15 +169,19 @@ public class AI{
 
 	// Checks for the distance to the nearest existing gom
 	// Is used in the heuristic to incentivize going towards goms
-	public static int nearest_gom_distance(BeliefState bstate){
-		if(bstate.getNbrOfGommes()==0) return -10000; // -10000 is actually a big bonus (since we substract this result in the heuristic) and we give if the map is completed
+	public static int nearest_gom_distance(BeliefState bstate, int original_nbgoms){
+		int current_nbgoms = bstate.getNbrOfGommes();
+
+		if(current_nbgoms==0) return -1000; // -10000 is actually a big bonus (since we substract this result in the heuristic) and we give if the map is completed
+
+		if(current_nbgoms < original_nbgoms) return -1;
 
 		Position pacmanpos = bstate.getPacmanPosition();
 		int pacmanx = pacmanpos.x; int pacmany = pacmanpos.y;
 
 		char[][] map = bstate.getMap();
 
-		int max_search_distance = 15;
+		int max_search_distance = 25;
 		int i; int k; int j;
 		for(k=1; k<= max_search_distance; k++){
 			for(i=-k; i<=k; i++){
@@ -188,7 +191,6 @@ public class AI{
 					pacmany + j >= 25 ||
 					pacmany +j < 0)continue;
 					if( map[pacmanx + i][pacmany + j] =='.') {
-						if(k<=1) return -20;
 						return Math.abs(i) + Math.abs(j);
 					}
 				}
@@ -200,10 +202,10 @@ public class AI{
 	
 	
 	// As we save values based on beliefstates and not on results, had to rework this function to work on  beliefstates
-	public static float treesearch(BeliefState bstate, int currentdepth) {
+	public static float treesearch(BeliefState bstate, int currentdepth, int original_nbgoms) {
 
 		// If we reach a leaf, stop expanding and return the heuristic value
-		if(currentdepth == maxdepth) return heuristic(bstate);
+		if(currentdepth == maxdepth) return heuristic(bstate, original_nbgoms);
 
 		ArrayList<BeliefState> beliefchildren;
 		ArrayList<Float> children_values;
@@ -213,6 +215,7 @@ public class AI{
 
 		float child_value;
 		float max_actionvalue = Float.MIN_VALUE;
+		float actionvalue;
 
 		Plans plans = bstate.extendsBeliefState();
 
@@ -234,26 +237,29 @@ public class AI{
 				// The expected number of children expanded is close to the minimum between the number of children and the parameter max_expand.
 				if(Math.random()> expand_proba)continue;
 
-				if(memory.containsKey(beliefchild.toString())) {
+				if(beliefchild.getLife()==0){
+					child_value = heuristic(beliefchild, original_nbgoms);
+					//memory.put(beliefchild.toString(), child_value);
+				}
+
+				else if(memory.containsKey(beliefchild.toString())) {
 					// If this beliefstate has already been considered, output the already known answer
 					child_value =  memory.get(beliefchild.toString());
 				}
-				else if(beliefchild.getLife()==0){
-					child_value = heuristic(beliefchild);
-					memory.put(beliefchild.toString(), child_value);
-				}
+
 				else {
-					child_value = treesearch(beliefchild, currentdepth + 1);
+					child_value = treesearch(beliefchild, currentdepth + 1, original_nbgoms);
 					memory.put(beliefchild.toString(), child_value); // Obviously, save that result in the memory
 				}
 				children_values.add(child_value);
 			}
 
-			float actionvalue = aggregateValues(children_values);
-			/*if (opposite_direction(plans.getAction(i).get(0), bstate.getPacmanPos().getDirection() )) {
-				actionvalue -= turnback_penalty;
-				System.out.println("U-turn detected");
-			}*/
+			if(children_values.isEmpty()){
+				actionvalue = heuristic(bstate, original_nbgoms);
+			}
+
+			else actionvalue = aggregateValues(children_values);
+
 			if(actionvalue > max_actionvalue) max_actionvalue = actionvalue;
 		}
 
@@ -283,7 +289,7 @@ public class AI{
 			belief_utilities = new ArrayList<Float>();
 			
 			for(BeliefState bstate : plan_result.getBeliefStates()) {
-				belief_utilities.add(treesearch(bstate, 0));
+				belief_utilities.add(treesearch(bstate, 0, bstate.getNbrOfGommes()));
 			}			
 			plan_utility = aggregateValues(belief_utilities);
 
