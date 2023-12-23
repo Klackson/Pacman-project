@@ -113,23 +113,16 @@ public class AI{
 	static final String aggregate_method = "mean";
 	static final float death_penatly = 1000;
 	static final float turnback_penalty = 150;
-	static final float max_expand = 5;
-	static final int gom_distance_weight = 10;
+	static final float max_expand = 10;
+	static final float gom_distance_weight = 10;
+	static final float move_incentive = 10;
+	static final boolean virtual_ghost = false;
 
 
 	static int number_of_moves = 0;
 
-	public static float heuristic (BeliefState bstate, int original_nbgoms) {
-		//if (bstate.getLife()==0) return 0;
-		// Very  primitive heuristic, we only consider current score and wether pacman is alive or dead
-		float hscore = 0;
-		hscore+= bstate.getScore();
-		//hscore-= (float) bstate.getNbrOfGommes();
-
-		if (bstate.getLife()==0) hscore -= death_penatly;
-		hscore -= gom_distance_weight * nearest_gom_distance(bstate, original_nbgoms);
-
-		return hscore;
+	public static int manhatan_distance(Position p1, Position p2){
+		return Math.abs(p1.x - p2.x) + Math.abs(p1.y - p2.y);
 	}
 	
 	
@@ -160,22 +153,16 @@ public class AI{
                 (Objects.equals(direction1, "LEFT") && direction2 == 'R');
     }
 
-	public static boolean same_direction(String direction1, char direction2){
-		return (Objects.equals(direction1, "UP") && direction2== 'U') ||
-				(Objects.equals(direction1, "DOWN") && direction2 == 'D') ||
-				(Objects.equals(direction1, "RIGHT") && direction2 == 'R') ||
-				(Objects.equals(direction1, "LEFT") && direction2 == 'L');
+	public static boolean opposite_direction(char direction1, char direction2){
+		return (Objects.equals(direction1, "U") && direction2== 'D') ||
+				(Objects.equals(direction1, "D") && direction2 == 'U') ||
+				(Objects.equals(direction1, "R") && direction2 == 'L') ||
+				(Objects.equals(direction1, "L") && direction2 == 'R');
 	}
 
 	// Checks for the distance to the nearest existing gom
 	// Is used in the heuristic to incentivize going towards goms
-	public static int nearest_gom_distance(BeliefState bstate, int original_nbgoms){
-		int current_nbgoms = bstate.getNbrOfGommes();
-
-		if(current_nbgoms==0) return -1000; // -10000 is actually a big bonus (since we substract this result in the heuristic) and we give if the map is completed
-
-		if(current_nbgoms < original_nbgoms) return -1;
-
+	public static int nearest_gom_distance(BeliefState bstate){
 		Position pacmanpos = bstate.getPacmanPosition();
 		int pacmanx = pacmanpos.x; int pacmany = pacmanpos.y;
 
@@ -199,13 +186,41 @@ public class AI{
 		System.out.println("gom not found. Move "+ number_of_moves);
 		return 2 * max_search_distance;
 	}
-	
+
+	// Tells us if pacman currently sees a ghost
+	public static boolean ghost_in_sight(BeliefState bstate){
+		for(int i=0; i< bstate.getNbrOfGhost(); i++){
+			if (bstate.getGhostPositions(i).size()==1) return true;
+		}
+		return false;
+	}
+
+	public static float heuristic (BeliefState bstate, BeliefState original_bstate) {
+		if (bstate.getLife()==0) return 0;
+
+		float hscore = 0;
+
+		hscore+= bstate.getScore(); // Most important and basic part : add the score
+
+		if (bstate.getLife()==0) hscore -= death_penatly; // substract points if dead
+
+
+		int current_nbgoms = bstate.getNbrOfGommes();
+
+		if(current_nbgoms==0) hscore+= 1000; // Big bonus if the map is finished
+		else if(current_nbgoms < original_bstate.getNbrOfGommes()) hscore+= gom_distance_weight; // Else if a new gom was eaten then don't bother with the search and give a small bonus
+		else hscore -= gom_distance_weight * bstate.distanceMinToGum(); // else substract points based on distance to nearest gom
+
+		//hscore += move_incentive * manhatan_distance(bstate.getPacmanPos(), original_bstate.getPacmanPos()); // add points incentivizing not staying static
+
+		return hscore;
+	}
 	
 	// As we save values based on beliefstates and not on results, had to rework this function to work on  beliefstates
-	public static float treesearch(BeliefState bstate, int currentdepth, int original_nbgoms) {
+	public static float treesearch(BeliefState bstate, int currentdepth, BeliefState original_state) {
 
 		// If we reach a leaf, stop expanding and return the heuristic value
-		if(currentdepth == maxdepth) return heuristic(bstate, original_nbgoms);
+		if(currentdepth == maxdepth) return heuristic(bstate, original_state);
 
 		ArrayList<BeliefState> beliefchildren;
 		ArrayList<Float> children_values;
@@ -232,13 +247,23 @@ public class AI{
 			children_values = new ArrayList<Float>();
 
 			for(BeliefState beliefchild : beliefchildren){
-				// To ease the computation burden, we don't compute all of the expanded beliefstates
+				// To ease the computation burden, we don't compute all the expanded beliefstates
 				// We randomly skip some of them depending on how many there are.
-				// The expected number of children expanded is close to the minimum between the number of children and the parameter max_expand.
+				// The expected number of children expanded is the minimum between the number of children and the parameter max_expand.
 				if(Math.random()> expand_proba)continue;
 
-				if(beliefchild.getLife()==0){
-					child_value = heuristic(beliefchild, original_nbgoms);
+				// VIRTUAL GHOST
+				// Since pacman is much more efficient when chased by a ghost, the idea is to make him think that he is even when he's not
+				// This means we prune moves where pacman stays still or goes backwards
+				if( virtual_ghost &&
+					!ghost_in_sight(bstate) && // no ghost in sight
+					(manhatan_distance(bstate.getPacmanPos(), beliefchild.getPacmanPos())==0 || // didn't move
+					opposite_direction(bstate.getPacmanPos().getDirection(), beliefchild.getPacmanPos().getDirection())) // Or moved backwards
+				)child_value=0;
+
+				else if(beliefchild.getLife()==0 || manhatan_distance(original_state.getPacmanPos(), beliefchild.getPacmanPos())==0){
+					// If pacman is dead or came back to his original position, don't expand further
+					child_value = heuristic(beliefchild, original_state);
 					//memory.put(beliefchild.toString(), child_value);
 				}
 
@@ -248,15 +273,13 @@ public class AI{
 				}
 
 				else {
-					child_value = treesearch(beliefchild, currentdepth + 1, original_nbgoms);
+					child_value = treesearch(beliefchild, currentdepth + 1, original_state);
 					memory.put(beliefchild.toString(), child_value); // Obviously, save that result in the memory
 				}
 				children_values.add(child_value);
 			}
 
-			if(children_values.isEmpty()){
-				actionvalue = heuristic(bstate, original_nbgoms);
-			}
+			if(children_values.isEmpty()) actionvalue = heuristic(bstate, original_state);
 
 			else actionvalue = aggregateValues(children_values);
 
@@ -289,9 +312,9 @@ public class AI{
 			belief_utilities = new ArrayList<Float>();
 			
 			for(BeliefState bstate : plan_result.getBeliefStates()) {
-				belief_utilities.add(treesearch(bstate, 0, bstate.getNbrOfGommes()));
+				belief_utilities.add(treesearch(bstate, 0, bstate));
 			}			
-			plan_utility = aggregateValues(belief_utilities);
+			plan_utility = aggregateValues(belief_utilities) ;
 
 			if (opposite_direction(plan_action, beliefState.getPacmanPos().getDirection() )) {
 				plan_utility -= turnback_penalty;
@@ -303,6 +326,7 @@ public class AI{
 			}
 		}
 		number_of_moves++;
+		//System.out.println("Found move "+ number_of_moves);
 		return chosen_action;
 	}
 }
