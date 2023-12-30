@@ -104,18 +104,18 @@ class Result{
 public class AI{
 
 	// We want our memory to work on the most general case as possible, and since results can be much more diverse than beliefstates, we use belifstates as keys to our memory
-	public static TreeMap<String,Float> memory = new TreeMap<String, Float>();
+	public static TreeMap<BeliefState,Float> memory = new TreeMap<BeliefState, Float>();
 	
 	// Parameters to fiddle with
 
-	static final int memory_refresh_rate = 3; // This value HAS to be below maxdepth otherwise pacman literally won't see ghosts coming
+	static final int memory_refresh_rate = 1; // This value HAS to be below maxdepth otherwise pacman literally won't see ghosts coming
 	static final int maxdepth = 4;
 	static final String aggregate_method = "mean";
 	static final float death_penatly = 1000;
 	static final float turnback_penalty = 150;
 	static final float max_expand = 10;
 	static final float gom_distance_weight = 10;
-	static final float move_incentive = 10;
+	static final float move_incentive = 1;
 	static final boolean virtual_ghost = false;
 
 
@@ -196,7 +196,7 @@ public class AI{
 	}
 
 	public static float heuristic (BeliefState bstate, BeliefState original_bstate) {
-		if (bstate.getLife()==0) return 0;
+		if (bstate.getLife()==0) return Float.MIN_VALUE;
 
 		float hscore = 0;
 
@@ -204,6 +204,11 @@ public class AI{
 
 		if (bstate.getLife()==0) hscore -= death_penatly; // substract points if dead
 
+		// Since our AI plays better (and is faster) when it has information on where the ghosts are, we give a bonus for each ghost pacman sees
+		for(int i=0; i< bstate.getNbrOfGhost(); i++){
+			// hscore -= bstate.getGhostPositions(i).size();
+			if (bstate.getGhostPositions(i).size()==1) hscore +=50;
+		}
 
 		int current_nbgoms = bstate.getNbrOfGommes();
 
@@ -236,7 +241,7 @@ public class AI{
 
 		for(int i=0; i<plans.size(); i++){
 
-			if (opposite_direction(plans.getAction(i).get(0), bstate.getPacmanPos().getDirection()) && plans.getAction(i).size()==1) continue;
+			if (plans.getAction(i).size()==1 && opposite_direction(plans.getAction(i).get(0), bstate.getPacmanPos().getDirection())) continue;
 
 			result = plans.getResult(i);
 			beliefchildren = result.getBeliefStates();
@@ -255,26 +260,30 @@ public class AI{
 				// VIRTUAL GHOST
 				// Since pacman is much more efficient when chased by a ghost, the idea is to make him think that he is even when he's not
 				// This means we prune moves where pacman stays still or goes backwards
+				/*
 				if( virtual_ghost &&
 					!ghost_in_sight(bstate) && // no ghost in sight
 					(manhatan_distance(bstate.getPacmanPos(), beliefchild.getPacmanPos())==0 || // didn't move
 					opposite_direction(bstate.getPacmanPos().getDirection(), beliefchild.getPacmanPos().getDirection())) // Or moved backwards
 				)child_value=0;
 
-				else if(beliefchild.getLife()==0 || manhatan_distance(original_state.getPacmanPos(), beliefchild.getPacmanPos())==0){
+
+				else */ if(beliefchild.getLife()==0
+						//|| manhatan_distance(original_state.getPacmanPos(), beliefchild.getPacmanPos())==0
+				){
 					// If pacman is dead or came back to his original position, don't expand further
 					child_value = heuristic(beliefchild, original_state);
-					//memory.put(beliefchild.toString(), child_value);
+					//memory.put(beliefchild, child_value);
 				}
 
-				else if(memory.containsKey(beliefchild.toString())) {
+				else if(memory.containsKey(beliefchild)) {
 					// If this beliefstate has already been considered, output the already known answer
-					child_value =  memory.get(beliefchild.toString());
+					child_value =  memory.get(beliefchild);
 				}
 
 				else {
 					child_value = treesearch(beliefchild, currentdepth + 1, original_state);
-					memory.put(beliefchild.toString(), child_value); // Obviously, save that result in the memory
+					memory.put(beliefchild, child_value); // Obviously, save that result in the memory
 				}
 				children_values.add(child_value);
 			}
@@ -296,7 +305,7 @@ public class AI{
 	 * @return a string describing the next action (among PacManLauncher.UP/DOWN/LEFT/RIGHT)
 	 */
 	public static String findNextMove(BeliefState beliefState) {
-		if(number_of_moves % memory_refresh_rate==0) memory = new TreeMap<String, Float>();
+        memory.clear();
 		Plans plans = beliefState.extendsBeliefState();
 		
 		float max_utility = Integer.MIN_VALUE;
