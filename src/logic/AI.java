@@ -1,6 +1,7 @@
 package logic;
 
 import java.util.*;
+import java.util.concurrent.ForkJoinPool;
 
 import view.Gomme;
 
@@ -108,13 +109,14 @@ public class AI{
 	
 	// Parameters to fiddle with
 
-	static final int memory_refresh_rate = 1; // This value HAS to be below maxdepth otherwise pacman literally won't see ghosts coming
+	static final int memory_refresh_rate = 100;
 	static final int maxdepth = 4;
 	static final String aggregate_method = "mean";
-	static final float death_penatly = 1000;
+	static final float death_penatly = 4000;
 	static final float turnback_penalty = 150;
 	static final float max_expand = 10;
 	static final float gom_distance_weight = 10;
+	static final float ghost_sight_reward = 50;
 	static final float move_incentive = 1;
 	static final boolean virtual_ghost = false;
 
@@ -196,7 +198,7 @@ public class AI{
 	}
 
 	public static float heuristic (BeliefState bstate, BeliefState original_bstate) {
-		if (bstate.getLife()==0) return Float.MIN_VALUE;
+		// if (bstate.getLife()==0) return 0; //Float.MIN_VALUE;
 
 		float hscore = 0;
 
@@ -207,7 +209,7 @@ public class AI{
 		// Since our AI plays better (and is faster) when it has information on where the ghosts are, we give a bonus for each ghost pacman sees
 		for(int i=0; i< bstate.getNbrOfGhost(); i++){
 			// hscore -= bstate.getGhostPositions(i).size();
-			if (bstate.getGhostPositions(i).size()==1) hscore +=50;
+			if (bstate.getGhostPositions(i).size()==1) hscore += ghost_sight_reward;
 		}
 
 		int current_nbgoms = bstate.getNbrOfGommes();
@@ -241,7 +243,7 @@ public class AI{
 
 		for(int i=0; i<plans.size(); i++){
 
-			if (plans.getAction(i).size()==1 && opposite_direction(plans.getAction(i).get(0), bstate.getPacmanPos().getDirection())) continue;
+			//if (plans.getAction(i).size()==1 && opposite_direction(plans.getAction(i).get(0), bstate.getPacmanPos().getDirection())) continue;
 
 			result = plans.getResult(i);
 			beliefchildren = result.getBeliefStates();
@@ -297,6 +299,14 @@ public class AI{
 
 		return max_actionvalue;
 	}
+
+	public static float paralleltreesearch(BeliefState bstate, int currentdepth, BeliefState original_state) {
+		ForkJoinPool pool = new ForkJoinPool();
+		ParallelTreeSearch search = new ParallelTreeSearch (bstate, currentdepth, original_state, memory);
+		pool.invoke (search);
+
+		return search.hvalue;
+	}
 	
 	/**
 	 * function that compute the next action to do (among UP, DOWN, LEFT, RIGHT)
@@ -305,7 +315,7 @@ public class AI{
 	 * @return a string describing the next action (among PacManLauncher.UP/DOWN/LEFT/RIGHT)
 	 */
 	public static String findNextMove(BeliefState beliefState) {
-        memory.clear();
+        if (number_of_moves % memory_refresh_rate ==0) memory.clear();
 		Plans plans = beliefState.extendsBeliefState();
 		
 		float max_utility = Integer.MIN_VALUE;
@@ -321,7 +331,7 @@ public class AI{
 			belief_utilities = new ArrayList<Float>();
 			
 			for(BeliefState bstate : plan_result.getBeliefStates()) {
-				belief_utilities.add(treesearch(bstate, 0, bstate));
+				belief_utilities.add(paralleltreesearch(bstate, 0, bstate));
 			}			
 			plan_utility = aggregateValues(belief_utilities) ;
 
