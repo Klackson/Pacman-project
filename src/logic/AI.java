@@ -2,6 +2,7 @@ package logic;
 
 import java.util.*;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.RecursiveAction;
 
 import view.Gomme;
 
@@ -109,12 +110,12 @@ public class AI{
 	
 	// Parameters to fiddle with
 
-	static final int memory_refresh_rate = 100;
-	static final int maxdepth = 4;
+	static final int memory_refresh_rate = 1;
+	static final int maxdepth = 5;
 	static final String aggregate_method = "mean";
 	static final float death_penatly = 4000;
 	static final float turnback_penalty = 150;
-	static final float max_expand = 10;
+	static final float max_expand = 1000;
 	static final float gom_distance_weight = 10;
 	static final float ghost_sight_reward = 50;
 	static final float move_incentive = 1;
@@ -347,5 +348,17 @@ public class AI{
 		number_of_moves++;
 		//System.out.println("Found move "+ number_of_moves);
 		return chosen_action;
+	}
+
+	public static synchronized void save_result(TreeMap<BeliefState, Float> memory, BeliefState bstate, Float hvalue){
+		memory.put(bstate, hvalue);
+	}
+
+	public static synchronized boolean state_in_memory(TreeMap<BeliefState, Float> memory, BeliefState bstate){
+		return memory.containsKey(bstate);
+	}
+
+	public static synchronized float get_memory_value(TreeMap<BeliefState, Float> memory, BeliefState bstate){
+		return memory.get(bstate);
 	}
 }

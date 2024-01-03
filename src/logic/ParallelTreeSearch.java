@@ -7,8 +7,7 @@ import java.util.concurrent.RecursiveAction;
 
 import static logic.AI.*;
 
-public class ParallelTreeSearch  extends RecursiveAction
-{
+public class ParallelTreeSearch  extends RecursiveAction {
     static final int maxdepth = 4;
     BeliefState bstate;
     int currentdepth;
@@ -25,7 +24,7 @@ public class ParallelTreeSearch  extends RecursiveAction
     protected void compute (){
         if (currentdepth == maxdepth || bstate.getLife()==0) hvalue = heuristic(bstate, originalstate);
 
-        else if(memory.containsKey(bstate)) hvalue = memory.get(bstate);
+        else if(state_in_memory(memory, bstate)) hvalue = get_memory_value(memory, bstate);
 
         else{
             ArrayList<Result> results = bstate.extendsBeliefState().results;
@@ -37,7 +36,8 @@ public class ParallelTreeSearch  extends RecursiveAction
                     TreeChildren.add(new ParallelTreeSearch(beliefchild, currentdepth+1, originalstate, memory));
                 }
 
-                invokeAll(TreeChildren);
+                invokeAll(TreeChildren); // Recursive parallel call
+
                 ArrayList<Float> children_values = new ArrayList<>();
                 for(ParallelTreeSearch child : TreeChildren){
                     children_values.add(child.hvalue);
@@ -45,9 +45,11 @@ public class ParallelTreeSearch  extends RecursiveAction
                 float actionvalue = aggregateValues(children_values);
                 if(actionvalue > hvalue) hvalue = actionvalue;
             }
-            memory.put(bstate, hvalue);
+            save_result(memory, bstate, hvalue);
         }
     }
+
 }
+
 
 
