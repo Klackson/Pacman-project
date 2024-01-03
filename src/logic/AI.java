@@ -111,7 +111,7 @@ public class AI{
 	// Parameters to fiddle with
 
 	static final int memory_refresh_rate = 1;
-	static final int maxdepth = 5;
+	static final int maxdepth = 4;
 	static final String aggregate_method = "mean";
 	static final float death_penatly = 4000;
 	static final float turnback_penalty = 150;
