@@ -117,6 +117,8 @@ public class AI{
 	static final float gom_distance_weight = 10;
 	static final float move_incentive = 1;
 	static final boolean virtual_ghost = false;
+	static final float ghost_sight_reward =30;
+	static final float escape_option_bonus = 0;
 
 
 	static int number_of_moves = 0;
@@ -188,15 +190,29 @@ public class AI{
 	}
 
 	// Tells us if pacman currently sees a ghost
-	public static boolean ghost_in_sight(BeliefState bstate){
+	public static int number_of_pathways(BeliefState bstate){
+		int pathway_count =0;
+		Position pacmanpos = bstate.getPacmanPosition();
+		int pacmanx = pacmanpos.x; int pacmany = pacmanpos.y;
+		char[][] map = bstate.getMap();
+
+		for (int i=-1; i<=1; i+=2) if(map[pacmanx+i][pacmany]!='#') pathway_count++;
+		for (int i=-1; i<=1; i+=2) if(map[pacmanx][pacmany+i]!='#') pathway_count++;
+
+		return pathway_count;
+	}
+
+	// Tells us if pacman currently sees a ghost
+	public static int nb_ghosts_in_sight(BeliefState bstate){
+		int seen = 0;
 		for(int i=0; i< bstate.getNbrOfGhost(); i++){
-			if (bstate.getGhostPositions(i).size()==1) return true;
+			if (bstate.getGhostPositions(i).size()==1) seen++;
 		}
-		return false;
+		return seen;
 	}
 
 	public static float heuristic (BeliefState bstate, BeliefState original_bstate) {
-		if (bstate.getLife()==0) return Float.MIN_VALUE;
+		if (bstate.getLife()==0) return 0; //Float.MIN_VALUE;
 
 		float hscore = 0;
 
@@ -205,16 +221,17 @@ public class AI{
 		if (bstate.getLife()==0) hscore -= death_penatly; // substract points if dead
 
 		// Since our AI plays better (and is faster) when it has information on where the ghosts are, we give a bonus for each ghost pacman sees
-		for(int i=0; i< bstate.getNbrOfGhost(); i++){
-			// hscore -= bstate.getGhostPositions(i).size();
-			if (bstate.getGhostPositions(i).size()==1) hscore +=50;
-		}
+		int ghosts_in_sight = nb_ghosts_in_sight(bstate);
+		hscore+= ghosts_in_sight * ghost_sight_reward;
+
+		// If pacman is not in a tunnel, meaning he has an escape route give him a bonus
+		//if(number_of_pathways(bstate)>=3) hscore+= escape_option_bonus;
 
 		int current_nbgoms = bstate.getNbrOfGommes();
 
 		if(current_nbgoms==0) hscore+= 1000; // Big bonus if the map is finished
 		else if(current_nbgoms < original_bstate.getNbrOfGommes()) hscore+= gom_distance_weight; // Else if a new gom was eaten then don't bother with the search and give a small bonus
-		else hscore -= gom_distance_weight * bstate.distanceMinToGum(); // else substract points based on distance to nearest gom
+		else hscore -= gom_distance_weight * bstate.distanceMinToGum(); // else subtract points based on distance to nearest gom
 
 		//hscore += move_incentive * manhatan_distance(bstate.getPacmanPos(), original_bstate.getPacmanPos()); // add points incentivizing not staying static
 
