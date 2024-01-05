@@ -110,14 +110,15 @@ public class AI{
 	
 	// Parameters to fiddle with
 
-	static final int memory_refresh_rate = 100;
-	static final int maxdepth = 4;
+	static final int memory_refresh_rate = 300;
+	static final int maxdepth = 2;
 	static final String aggregate_method = "mean";
 	static final float death_penatly = 4000;
 	static final float turnback_penalty = 150;
 	static final float max_expand = 1000;
 	static final float gom_distance_weight = 10;
-	static final float ghost_sight_reward = 50;
+	static final float ghost_sight_reward = 5;
+	static final float double_ghost_sight_reward = 100;
 	static final float move_incentive = 1;
 	static final boolean virtual_ghost = false;
 
@@ -127,8 +128,7 @@ public class AI{
 	public static int manhatan_distance(Position p1, Position p2){
 		return Math.abs(p1.x - p2.x) + Math.abs(p1.y - p2.y);
 	}
-	
-	
+
 	// This method will define what function we use in order to compute the values from several children (originally leaves)
 	public static float aggregateValues(ArrayList<Float> values) {
 		if(values.isEmpty())return 0;
@@ -191,11 +191,12 @@ public class AI{
 	}
 
 	// Tells us if pacman currently sees a ghost
-	public static boolean ghost_in_sight(BeliefState bstate){
+	public static int nb_ghosts_in_sight(BeliefState bstate){
+		int nbseen = 0;
 		for(int i=0; i< bstate.getNbrOfGhost(); i++){
-			if (bstate.getGhostPositions(i).size()==1) return true;
+			if (bstate.getGhostPositions(i).size()==1) nbseen++;
 		}
-		return false;
+		return nbseen;
 	}
 
 	public static float heuristic (BeliefState bstate, BeliefState original_bstate) {
@@ -208,16 +209,28 @@ public class AI{
 		if (bstate.getLife()==0) hscore -= death_penatly; // substract points if dead
 
 		// Since our AI plays better (and is faster) when it has information on where the ghosts are, we give a bonus for each ghost pacman sees
-		for(int i=0; i< bstate.getNbrOfGhost(); i++){
-			// hscore -= bstate.getGhostPositions(i).size();
-			if (bstate.getGhostPositions(i).size()==1) hscore += ghost_sight_reward;
-		}
+		int ghosts_in_sight = nb_ghosts_in_sight(bstate);
+		if(ghosts_in_sight==1) hscore += ghost_sight_reward;
+		else if (ghosts_in_sight==2) hscore += double_ghost_sight_reward;
 
 		int current_nbgoms = bstate.getNbrOfGommes();
 
 		if(current_nbgoms==0) hscore+= 1000; // Big bonus if the map is finished
 		else if(current_nbgoms < original_bstate.getNbrOfGommes()) hscore+= gom_distance_weight; // Else if a new gom was eaten then don't bother with the search and give a small bonus
 		else hscore -= gom_distance_weight * bstate.distanceMinToGum(); // else substract points based on distance to nearest gom
+
+
+		// The idea behind this part is that we disicentivize taking super gums if pacman is not "threatened" to keep them for later
+		// meaning the position of at least a ghost is not too uncertain
+		if(false && bstate.getNbrOfSuperGommes() < original_bstate.getNbrOfSuperGommes()) {
+			int ghost_uncertainty = 100;
+			for (int i = 0; i < bstate.getNbrOfGhost(); i++) {
+				int ghost_nb_possible_pos = bstate.getGhostPositions(i).size();
+				if (ghost_nb_possible_pos < ghost_uncertainty) ghost_uncertainty = ghost_nb_possible_pos;
+			}
+			if(ghost_uncertainty > 15) hscore-=10;
+		}
+
 
 		//hscore += move_incentive * manhatan_distance(bstate.getPacmanPos(), original_bstate.getPacmanPos()); // add points incentivizing not staying static
 
